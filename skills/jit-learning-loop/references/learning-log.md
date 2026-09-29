@@ -29,7 +29,7 @@ Ask of every lesson: **"Next time I hit a *different* problem, will I be faster 
 | "Set `memory: 1Gi` in `deploy/orders.yaml`" | "Exit code 137 plus OOMKilled means the container went over its memory limit, not that the app crashed" |
 | "Add `prefetch_related('items__product')` on line 12" | "An N+1 hides wherever a template walks a relation. Follow every `.` in the template." |
 
-Local knowledge still matters for the current repo. If it's worth keeping, it belongs in the repo's docs or CLAUDE.md, not in a personal learning log.
+Local knowledge still matters for the current repo. If it's worth keeping, it belongs in the repo's docs or agent instructions file (AGENTS.md, CLAUDE.md and similar), not in a personal learning log.
 
 ## More examples
 

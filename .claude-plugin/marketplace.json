@@ -15,7 +15,13 @@
       "version": "0.1.0",
       "source": "./",
       "category": "learning",
-      "tags": ["learning", "skills", "debugging", "mental-model"]
+      "tags": [
+        "learning",
+        "skills",
+        "debugging",
+        "mental-model"
+      ],
+      "license": "Apache-2.0"
     }
   ]
 }

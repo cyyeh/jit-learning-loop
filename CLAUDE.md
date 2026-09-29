@@ -8,6 +8,16 @@ This repo develops a single Claude Code skill: `skills/jit-learning-loop/`. It i
 - `SKILL.md` must stay under ~500 lines. Put depth in `references/` and point to it from `SKILL.md`, saying when to read it.
 - Frontmatter allows only `name`, `description`, `license`, `allowed-tools`, `metadata` and `compatibility`. The description must be ≤1024 characters with no angle brackets.
 
+## Cross-agent compatibility
+
+The skill is distributed with `npx skills add cyyeh/jit-learning-loop` to any agent that implements the [Agent Skills spec](https://agentskills.io/specification), not just Claude Code. Keep it portable:
+
+- **Skill files stay agent-neutral.** Don't name specific tools (Bash, Read, subagents), slash commands, or Claude-only features in `skills/`. Say "the agent", "read the file", "run the test".
+- **Frontmatter stays single-line and plain.** Some agents parse it naively: no block scalars, no `: ` or ` #` inside the description.
+- **Trigger words go first in the description.** Codex shortens descriptions when many skills are installed.
+- **Agent-specific extras are optional side files** (`agents/openai.yaml` for Codex). The skill must work without them.
+- `node scripts/validate.mjs` enforces the frontmatter rules. CI also checks that `npx skills add . --list` discovers the skill.
+
 ## Iterating with skill-creator
 
 Use the `skill-creator` skill for the eval loop. The conventions for this repo:
@@ -21,7 +31,8 @@ Use the `skill-creator` skill for the eval loop. The conventions for this repo:
 ## Validate
 
 ```bash
-python <skill-creator>/scripts/quick_validate.py skills/jit-learning-loop
+node scripts/validate.mjs
+npx skills add . --list
 ```
 
 ## Language

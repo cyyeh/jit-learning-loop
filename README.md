@@ -36,22 +36,37 @@ The question it keeps asking is: *which part of the cognitive work should you ke
 
 ## Install
 
-**Option A: symlink (best while developing the skill)**
+### Any coding agent (via [`npx skills`](https://github.com/vercel-labs/skills))
+
+The skill follows the [Agent Skills spec](https://agentskills.io/specification), so it works in Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, OpenCode, Windsurf, Amp, Cline and [the other agents `skills` supports](https://github.com/vercel-labs/skills#supported-agents).
+
+```bash
+# Current project, for the agents detected on this machine
+npx skills add cyyeh/jit-learning-loop
+
+# Globally, for every agent you use
+npx skills add cyyeh/jit-learning-loop -g
+
+# Only for specific agents
+npx skills add cyyeh/jit-learning-loop -a claude-code -a codex -a cursor
+```
+
+Update later with `npx skills update jit-learning-loop`.
+
+### Claude Code plugin
+
+```text
+/plugin marketplace add cyyeh/jit-learning-loop
+/plugin install jit-learning-loop@jit-learning-loop
+```
+
+### Local development (symlink)
 
 ```bash
 ./scripts/install.sh
 ```
 
-This links `skills/jit-learning-loop` into `${CLAUDE_CONFIG_DIR:-~/.claude}/skills/`, so edits here take effect immediately.
-
-**Option B: as a plugin**
-
-```text
-/plugin marketplace add /Users/cyyeh/Desktop/jit-learning-loop
-/plugin install jit-learning-loop@jit-learning-loop
-```
-
-Once it's pushed to GitHub, anyone can install it with `/plugin marketplace add <owner>/jit-learning-loop`.
+This links `skills/jit-learning-loop` into `${CLAUDE_CONFIG_DIR:-~/.claude}/skills/`, so edits here take effect immediately. For other agents, `npx skills add ./ -a <agent>` installs from your local checkout.
 
 ## Use
 
@@ -63,26 +78,38 @@ I've never used Kafka. Our consumer sends duplicate emails after deploy. Help me
 Here's my plan for the N+1 fix. Check my reasoning before I do it?
 ```
 
-Or call it directly with `/jit-learning-loop`, and set the level if you like ("level 2 on this one").
+Or invoke it by name: `/jit-learning-loop` in Claude Code, `$jit-learning-loop` in Codex, or your agent's equivalent. You can also set the level ("level 2 on this one").
 
 ## Repo layout
 
 ```text
-.claude-plugin/          plugin + marketplace manifests
-skills/jit-learning-loop/
-  SKILL.md               the skill (loaded when triggered)
-  references/            loaded on demand
-    unknown-types.md     signals, strategies and traps for each unknown type; fundamentals list
-    fading.md            assistance levels, how to choose one, worked example
-    learning-log.md      template, local vs. transferable, examples
+skills/jit-learning-loop/    the skill (what `npx skills add` installs)
+  SKILL.md                   loaded when triggered
+  references/                loaded on demand
+    unknown-types.md         signals, strategies and traps for each unknown type; fundamentals list
+    fading.md                assistance levels, how to choose one, worked example
+    learning-log.md          template, local vs. transferable, examples
+  agents/openai.yaml         optional Codex / ChatGPT display metadata
+.claude-plugin/              Claude Code plugin + marketplace manifests
 evals/
-  evals.json             test prompts + expectations for skill-creator runs
-  files/                 fixtures: checkout race, k8s OOMKilled, Django N+1, Kafka duplicates
+  evals.json                 test prompts + expectations for skill-creator runs
+  files/                     fixtures: checkout race, k8s OOMKilled, Django N+1, Kafka duplicates
 docs/
-  methodology.zh-TW.md   the source essay this skill was distilled from
-scripts/install.sh       symlink installer
+  methodology.zh-TW.md       the source essay this skill was distilled from
+scripts/
+  validate.mjs               Agent Skills spec check (no dependencies; runs in CI)
+  install.sh                 dev symlink installer
 ```
 
 ## Developing the skill
 
-See [CLAUDE.md](CLAUDE.md) for how to iterate with `skill-creator`: run the evals with and without the skill, review the outputs in the viewer, and revise.
+```bash
+node scripts/validate.mjs          # spec check: name, description length, YAML safety
+npx skills add . --list            # confirm the skills CLI discovers it
+```
+
+CI runs both on every push. See [CLAUDE.md](CLAUDE.md) for how to iterate with `skill-creator`: run the evals with and without the skill, review the outputs in the viewer, and revise.
+
+## License
+
+[Apache-2.0](LICENSE) © 2026 Jimmy Yeh

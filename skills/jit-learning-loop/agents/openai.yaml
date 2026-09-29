@@ -1,0 +1,5 @@
+# Optional UI metadata for Codex / ChatGPT. Other agents ignore this file.
+interface:
+  display_name: "JIT Learning Loop"
+  short_description: "Finish the task and learn exactly what it needs"
+  default_prompt: "Help me with this task, and teach me what I need to understand along the way."
