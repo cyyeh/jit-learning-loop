@@ -1,0 +1,10 @@
+{
+  "name": "jit-learning-loop",
+  "description": "Just-in-time learning loop for agentic coding: finish the task and leave a reusable mental model behind.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Jimmy Yeh",
+    "email": "chihyu.jimmy.yeh@gmail.com"
+  },
+  "keywords": ["learning", "mental-model", "scaffolding", "debugging", "education"]
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "jit-learning-loop",
+  "metadata": {
+    "description": "Learn exactly what the task needs, while doing the task."
+  },
+  "owner": {
+    "name": "Jimmy Yeh",
+    "email": "chihyu.jimmy.yeh@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "jit-learning-loop",
+      "description": "Just-in-time learning loop for agentic coding: gap map, minimum mental model, predict-before-experiment, diff explanation, fading, transferable lessons.",
+      "version": "0.1.0",
+      "source": "./",
+      "category": "learning",
+      "tags": ["learning", "skills", "debugging", "mental-model"]
+    }
+  ]
+}

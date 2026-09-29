@@ -1,0 +1,15 @@
+<table>
+  {% for order in orders %}
+  <tr>
+    <td>#{{ order.id }}</td>
+    <td>{{ order.customer.name }}</td>
+    <td>
+      <ul>
+        {% for item in order.items.all %}
+        <li>{{ item.quantity }} × {{ item.product.name }}</li>
+        {% endfor %}
+      </ul>
+    </td>
+  </tr>
+  {% endfor %}
+</table>

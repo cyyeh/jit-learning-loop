@@ -1,0 +1,6 @@
+# skill-creator eval runs (large, regenerated each iteration)
+*-workspace/
+workspace/
+*.skill
+__pycache__/
+.DS_Store

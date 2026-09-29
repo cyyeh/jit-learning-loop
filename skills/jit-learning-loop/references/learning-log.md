@@ -1,0 +1,67 @@
+# Learning log
+
+Read this when writing the step-7 entry, or when setting up a log for the first time.
+
+The log should be *short*. A long note is written once and never read again. A three-line entry gets reread the next time the topic comes up, and that is also when you (the agent) use it to calibrate the assistance level.
+
+## Template
+
+```text
+## YYYY-MM-DD · <topic>
+Task: <one line: what was actually being done>
+Unknown types: <concept / API / codebase / behavior>
+Learned:
+1. <transferable lesson>
+2. <transferable lesson>
+3. <optional>
+Next time: <what to try or read before the next encounter>
+Level: <1 | 2 | 3>, <suggested level for next encounter>
+```
+
+## Transferable or local?
+
+Ask of every lesson: **"Next time I hit a *different* problem, will I be faster because I learned this?"**
+
+| Local (mention it, don't log it as a lesson) | Transferable (log it) |
+|---|---|
+| "The lock is in `payments/checkout.py`" | "Check-then-act across concurrent requests is a race" |
+| "Our Kafka topic is `invoices`" | "Auto-commit on a timer means at-least-once. Handlers must be idempotent." |
+| "Set `memory: 1Gi` in `deploy/orders.yaml`" | "Exit code 137 plus OOMKilled means the container went over its memory limit, not that the app crashed" |
+| "Add `prefetch_related('items__product')` on line 12" | "An N+1 hides wherever a template walks a relation. Follow every `.` in the template." |
+
+Local knowledge still matters for the current repo. If it's worth keeping, it belongs in the repo's docs or CLAUDE.md, not in a personal learning log.
+
+## More examples
+
+```text
+## 2026-03-14 · Redis locking
+Task: Stop double-charge when users double-click Pay
+Unknown types: concept (race), API (SET NX PX)
+Learned:
+1. SET NX can implement a simple lock.
+2. Release must check ownership, or you free someone else's lock.
+3. A TTL prevents deadlock but introduces a lease-expiry race.
+Next time: read about fencing tokens / Redlock for stronger guarantees.
+Level: 1, try 2
+```
+
+```text
+## 2026-05-02 · Kubernetes restarts
+Task: orders-api pods restarting every ~20 min
+Unknown types: concept (Pod vs container lifecycle), behavior (why restarts)
+Learned:
+1. Restart Count goes up when the *container* restarts inside the same Pod. A new Pod name means the controller replaced the Pod.
+2. `Last State: Terminated / OOMKilled / 137` means the kernel killed it for going over the memory limit. Look at the memory trend, not the app logs.
+3. Liveness probe failures can be a *symptom* of memory pressure (GC pauses), not a separate cause.
+Next time: `kubectl top pod` plus the memory graph before touching any config.
+Level: 1, try 2
+```
+
+## Where the log lives
+
+Ask the user once. Reasonable defaults:
+
+- **Per repo:** `LEARNING_LOG.md` at the repo root, if the team is happy to share lessons.
+- **Personal, across projects:** a single file the user names (for example `~/notes/learning-log.md`). This is better for fading, because topics recur across repos.
+
+Append new entries at the top so the most recent is read first. Don't reorganize or rewrite old entries unless asked.

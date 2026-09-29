@@ -1,0 +1,54 @@
+$ kubectl -n prod describe pod orders-api-7d9f8b6c5-x2kqp
+Name:             orders-api-7d9f8b6c5-x2kqp
+Namespace:        prod
+Priority:         0
+Service Account:  orders-api
+Node:             ip-10-0-42-17.ec2.internal/10.0.42.17
+Start Time:       Tue, 29 Sep 2026 08:02:11 +0000
+Labels:           app=orders-api
+                  pod-template-hash=7d9f8b6c5
+Status:           Running
+IP:               10.0.42.203
+Controlled By:    ReplicaSet/orders-api-7d9f8b6c5
+Containers:
+  orders-api:
+    Container ID:   containerd://9f1c0e2b7a...
+    Image:          registry.internal/orders-api:2.14.0
+    Port:           8080/TCP
+    State:          Running
+      Started:      Tue, 29 Sep 2026 12:41:37 +0000
+    Last State:     Terminated
+      Reason:       OOMKilled
+      Exit Code:    137
+      Started:      Tue, 29 Sep 2026 12:19:02 +0000
+      Finished:     Tue, 29 Sep 2026 12:41:35 +0000
+    Ready:          True
+    Restart Count:  14
+    Limits:
+      cpu:     500m
+      memory:  512Mi
+    Requests:
+      cpu:      250m
+      memory:   256Mi
+    Liveness:   http-get http://:8080/healthz delay=10s timeout=1s period=10s #success=1 #failure=3
+    Readiness:  http-get http://:8080/ready delay=5s timeout=1s period=5s #success=1 #failure=3
+    Environment:
+      NODE_ENV:            production
+      NODE_OPTIONS:        --max-old-space-size=1024
+      ORDERS_CACHE_TTL_S:  3600
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
+QoS Class:          Burstable
+Events:
+  Type     Reason     Age                  From     Message
+  ----     ------     ----                 ----     -------
+  Warning  Unhealthy  24m (x6 over 4h)     kubelet  Liveness probe failed: Get "http://10.0.42.203:8080/healthz": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+  Warning  Unhealthy  24m (x9 over 4h)     kubelet  Readiness probe failed: Get "http://10.0.42.203:8080/ready": context deadline exceeded
+  Normal   Pulled     2m (x15 over 4h40m)  kubelet  Container image "registry.internal/orders-api:2.14.0" already present on machine
+  Normal   Created    2m (x15 over 4h40m)  kubelet  Created container orders-api
+  Normal   Started    2m (x15 over 4h40m)  kubelet  Started container orders-api
+  Warning  BackOff    2m (x3 over 1h)      kubelet  Back-off restarting failed container orders-api in pod orders-api-7d9f8b6c5-x2kqp
