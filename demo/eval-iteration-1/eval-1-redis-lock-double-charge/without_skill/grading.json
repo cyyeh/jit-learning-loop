@@ -1,0 +1,53 @@
+{
+  "expectations": [
+    {
+      "text": "Lists what the user already knows vs. what is missing before proposing any code",
+      "passed": false,
+      "evidence": "Goes straight to 'What's going wrong'; no inventory of what the user knows vs lacks."
+    },
+    {
+      "text": "Tags at least two gaps with an unknown type (concept / API / codebase / behavior)",
+      "passed": false,
+      "evidence": "No unknown-type classification."
+    },
+    {
+      "text": "Flags concurrency (or race conditions) as a fundamental worth deeper study, in a sentence or two rather than a lecture",
+      "passed": false,
+      "evidence": "Never flags concurrency/distributed systems as a fundamental to study."
+    },
+    {
+      "text": "Explains the check-then-act race between get_order and mark_paid using the user's own code",
+      "passed": true,
+      "evidence": "Timeline of click 1 / click 2 both reading 'pending' mapped to the handler."
+    },
+    {
+      "text": "Mentions at least one alternative to a Redis lock (e.g. idempotency key, conditional UPDATE ... WHERE status='pending', unique constraint) with a trade-off",
+      "passed": true,
+      "evidence": "Implements a Postgres conditional UPDATE instead and recommends an idempotency key, with Redis-lock trade-offs."
+    },
+    {
+      "text": "Asks the user to predict or reason about something before implementing the fix",
+      "passed": false,
+      "evidence": "No prediction asked; ends by asking whether payments.internal supports idempotency keys."
+    },
+    {
+      "text": "Does not modify files or present a complete final implementation in the first turn",
+      "passed": false,
+      "evidence": "Modified app.py and db.py (outputs/changed-files/evals/...) and reports a finished, tested fix."
+    },
+    {
+      "text": "Mental model section introduces no more than ~5 core concepts (no full Redis tutorial)",
+      "passed": true,
+      "evidence": "Redis explanation limited to NX, PX and the token; no full tutorial."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 5,
+    "total": 8,
+    "pass_rate": 0.38
+  },
+  "eval_feedback": {
+    "overall": "High-quality fix with real concurrency testing, but the agent does all the cognitive work."
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "eval_id": 4,
+  "eval_name": "kafka-duplicates-zh-tw",
+  "prompt": "我第一次碰 Kafka。我們的 invoice-mailer consumer 每次 deploy 之後，有些客戶會收到兩封一樣的 invoice email。code 在 evals/files/kafka-consumer/consumer.py。可以幫我修嗎？但我想搞懂到底發生什麼事，不要只丟一個 fix 給我。",
+  "assertions": [
+    "Response is written primarily in Traditional Chinese",
+    "Keeps Kafka technical terms (offset, consumer group, commit, rebalance) in English",
+    "Identifies offset / auto-commit timing as a key missing concept",
+    "Introduces delivery semantics (at-least-once) or equivalent idea that duplicates are expected without idempotency",
+    "Anchors the model to something the user likely knows (e.g. a job queue) and names where the analogy breaks",
+    "Asks the user for a prediction before implementing the fix",
+    "Does not deliver a full rewritten consumer in the first turn"
+  ]
+}

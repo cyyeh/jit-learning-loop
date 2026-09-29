@@ -1,0 +1,43 @@
+{
+  "expectations": [
+    {
+      "text": "Engages with the user's proposal first, stating what is correct about it and why",
+      "passed": true,
+      "evidence": "Opens with 'What's right' covering both of the user's relations."
+    },
+    {
+      "text": "Explains or asks why select_related fits customer (forward FK) while prefetch_related fits items (reverse FK)",
+      "passed": true,
+      "evidence": "'forward FK... JOIN' vs 'reverse side of OrderItem.order... one extra query'."
+    },
+    {
+      "text": "Surfaces the remaining N+1 on item.product (template touches item.product.name)",
+      "passed": true,
+      "evidence": "Points to line 9 of list.html: item.product.name is another FK one level deeper."
+    },
+    {
+      "text": "Uses a question or hint to lead the user to the product N+1 before (or instead of) giving the full answer",
+      "passed": true,
+      "evidence": "Withholds the fix: 'how would you change the plan to cover item.product? Say which tool you'd use and why.' It does name the location directly rather than hinting."
+    },
+    {
+      "text": "Suggests a way to verify query counts (e.g. assertNumQueries, django-debug-toolbar, connection.queries)",
+      "passed": true,
+      "evidence": "Offers to count real queries on seeded data and pin the count with a test."
+    },
+    {
+      "text": "Does not edit views.py or hand over a rewritten file unprompted",
+      "passed": true,
+      "evidence": "No edits; no rewritten file."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "overall": "Good level-2 behaviour. It could have asked 'follow every dot in the template' before naming item.product."
+  }
+}

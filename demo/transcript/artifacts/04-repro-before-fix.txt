@@ -1,0 +1,58 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.13, pytest-9.1.1, pluggy-1.6.0
+rootdir: /Users/cyyeh/Desktop/jit-learning-loop/demo/project
+plugins: anyio-4.15.1
+collected 2 items
+
+tests/test_double_click.py F.                                            [100%]
+
+=================================== FAILURES ===================================
+____________ test_double_click_charges_card_once[clicks-50ms-apart] ____________
+
+checkout = Checkout(provider_delay=0.5, provider_fails=False, orders={'o-1': Order(id='o-1', customer_id='cus-1', amount_cents=42...ress=d3b71e0200524fe099e8eafc43e20a86,orig_socket_timeout=5,orig_socket_connect_timeout=5)>)>)>, _t0=2066517.433672416)
+gap = 0.05
+
+    @pytest.mark.parametrize("gap", [0.05, 1.0], ids=["clicks-50ms-apart", "clicks-1s-apart"])
+    async def test_double_click_charges_card_once(checkout, gap):
+        checkout.provider_delay = 0.5  # the real provider takes 300-900ms
+    
+        await checkout.clicks("o-1", 0, gap)
+    
+        checkout.print_timeline()
+>       assert len(checkout.charges) == 1
+E       AssertionError: assert 2 == 1
+E        +  where 2 = len([('cus-1', 4200), ('cus-1', 4200)])
+E        +    where [('cus-1', 4200), ('cus-1', 4200)] = Checkout(provider_delay=0.5, provider_fails=False, orders={'o-1': Order(id='o-1', customer_id='cus-1', amount_cents=42...ress=d3b71e0200524fe099e8eafc43e20a86,orig_socket_timeout=5,orig_socket_connect_timeout=5)>)>)>, _t0=2066517.433672416).charges
+
+tests/test_double_click.py:13: AssertionError
+----------------------------- Captured stdout call -----------------------------
+
+      1ms  A  POST /orders/o-1/pay
+      4ms  A  get_order -> status=pending
+      4ms  A  charge_card: request sent to provider
+     52ms  B  POST /orders/o-1/pay
+     55ms  B  get_order -> status=pending
+     55ms  B  charge_card: request sent to provider
+    506ms  A  charge_card: CHARGED 4200 -> ch_1
+    508ms  A  mark_paid(ch_1)
+    509ms  A  <- 200 {'status': 'paid', 'receipt': 'ch_1'}
+    555ms  B  charge_card: CHARGED 4200 -> ch_2
+    557ms  B  mark_paid(ch_2)
+    558ms  B  <- 200 {'status': 'paid', 'receipt': 'ch_2'}
+==================================== PASSES ====================================
+_____________ test_double_click_charges_card_once[clicks-1s-apart] _____________
+----------------------------- Captured stdout call -----------------------------
+
+      1ms  A  POST /orders/o-1/pay
+      3ms  A  get_order -> status=pending
+      3ms  A  charge_card: request sent to provider
+    504ms  A  charge_card: CHARGED 4200 -> ch_1
+    507ms  A  mark_paid(ch_1)
+    507ms  A  <- 200 {'status': 'paid', 'receipt': 'ch_1'}
+   1001ms  B  POST /orders/o-1/pay
+   1005ms  B  get_order -> status=paid
+   1005ms  B  <- 200 {'status': 'already_paid'}
+=========================== short test summary info ============================
+PASSED tests/test_double_click.py::test_double_click_charges_card_once[clicks-1s-apart]
+FAILED tests/test_double_click.py::test_double_click_charges_card_once[clicks-50ms-apart]
+========================= 1 failed, 1 passed in 1.62s ==========================

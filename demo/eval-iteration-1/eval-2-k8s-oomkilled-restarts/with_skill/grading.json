@@ -1,0 +1,43 @@
+{
+  "expectations": [
+    {
+      "text": "Classifies the core unknown as a behavior unknown (why does it restart) and at least one concept gap (Pod vs container / restart lifecycle)",
+      "passed": true,
+      "evidence": "'Why memory hits 512Mi every ~20 min (behavior...)' plus 'container restart vs pod replacement (concept + API)'."
+    },
+    {
+      "text": "Gives a compact mental model (diagram or causal chain) of Pod, container, and restarts",
+      "passed": true,
+      "evidence": "Two ASCII diagrams: Deployment→ReplicaSet→Pod→Container restart loop, and the limit box vs V8 heap."
+    },
+    {
+      "text": "Asks the user to interpret a specific field of the pasted describe output (e.g. Last State, Exit Code, Restart Count) instead of only predicting in the abstract",
+      "passed": true,
+      "evidence": "Q1: 'Based on your paste, would [raising the liveness timeout] help? Why does /healthz stop answering?' However the agent had already decoded Last State/OOMKilled itself in 'Short version', so the key field was not left for the user."
+    },
+    {
+      "text": "Acknowledges urgency — e.g. notes whether it is an outage and/or offers a quick mitigation — without skipping the learning loop entirely",
+      "passed": true,
+      "evidence": "'Do now (~5 min)' section: save --previous logs, check rollout, roll back or raise limit, before the learning loop."
+    },
+    {
+      "text": "Presents OOMKilled and liveness-probe failure as competing hypotheses or cause vs. symptom",
+      "passed": true,
+      "evidence": "Probes explained in the model; Q1 asks the user to reason whether liveness is the cause; H1–H3 are about memory growth."
+    },
+    {
+      "text": "Does not immediately edit manifests or declare a final fix before the user has engaged with the evidence",
+      "passed": true,
+      "evidence": "No manifest edits; gives a stopgap only and defers root-cause fix until evidence arrives."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "overall": "Passes, but it gave away the most instructive reading (OOMKilled / 137) up front. The urgency rule ('mitigate first') may be pulling diagnosis forward."
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "expectations": [
+    {
+      "text": "Classifies the core unknown as a behavior unknown (why does it restart) and at least one concept gap (Pod vs container / restart lifecycle)",
+      "passed": false,
+      "evidence": "No classification of unknowns."
+    },
+    {
+      "text": "Gives a compact mental model (diagram or causal chain) of Pod, container, and restarts",
+      "passed": false,
+      "evidence": "Explains fields section by section; no compact Pod/container/restart model or diagram."
+    },
+    {
+      "text": "Asks the user to interpret a specific field of the pasted describe output (e.g. Last State, Exit Code, Restart Count) instead of only predicting in the abstract",
+      "passed": false,
+      "evidence": "Interprets every field itself; asks for command output only at the end."
+    },
+    {
+      "text": "Acknowledges urgency — e.g. notes whether it is an outage and/or offers a quick mitigation — without skipping the learning loop entirely",
+      "passed": true,
+      "evidence": "'Stop the bleeding' with rollback / limit bump, plus a reusable checklist and exit-code cheat sheet."
+    },
+    {
+      "text": "Presents OOMKilled and liveness-probe failure as competing hypotheses or cause vs. symptom",
+      "passed": true,
+      "evidence": "'The probes are timing out... but they aren't what restarts the pod.'"
+    },
+    {
+      "text": "Does not immediately edit manifests or declare a final fix before the user has engaged with the evidence",
+      "passed": true,
+      "evidence": "No manifest edits; root cause framed as a hypothesis to confirm."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 3,
+    "total": 6,
+    "pass_rate": 0.5
+  },
+  "eval_feedback": {
+    "overall": "Excellent reference-style answer (checklist, cheat sheet) but purely expository: the user never has to think."
+  }
+}

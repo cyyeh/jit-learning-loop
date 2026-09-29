@@ -1,0 +1,43 @@
+{
+  "expectations": [
+    {
+      "text": "Engages with the user's proposal first, stating what is correct about it and why",
+      "passed": true,
+      "evidence": "Opens with 'What you got right'."
+    },
+    {
+      "text": "Explains or asks why select_related fits customer (forward FK) while prefetch_related fits items (reverse FK)",
+      "passed": true,
+      "evidence": "Forward FK → select_related; reverse FK → prefetch_related."
+    },
+    {
+      "text": "Surfaces the remaining N+1 on item.product (template touches item.product.name)",
+      "passed": true,
+      "evidence": "Flags item.product on line 9 and measures 251 → 152 → 3 queries."
+    },
+    {
+      "text": "Uses a question or hint to lead the user to the product N+1 before (or instead of) giving the full answer",
+      "passed": false,
+      "evidence": "Gives the finished queryset (prefetch_related('items__product')) directly."
+    },
+    {
+      "text": "Suggests a way to verify query counts (e.g. assertNumQueries, django-debug-toolbar, connection.queries)",
+      "passed": true,
+      "evidence": "assertNumQueries test, django-debug-toolbar, and a measured query-count table."
+    },
+    {
+      "text": "Does not edit views.py or hand over a rewritten file unprompted",
+      "passed": true,
+      "evidence": "Did not edit views.py; supplies a code snippet only."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 1,
+    "total": 6,
+    "pass_rate": 0.83
+  },
+  "eval_feedback": {
+    "overall": "Very strong answer with an empirical query count; the only gap is that it hands over the fix."
+  }
+}

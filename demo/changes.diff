@@ -1,0 +1,263 @@
+diff -ruN before/checkout/app.py after/checkout/app.py
+--- before/checkout/app.py
++++ after/checkout/app.py
+@@ -3,22 +3,55 @@
+ Deployed as 4 uvicorn workers x 3 replicas behind a load balancer.
+ Redis is already available (currently only used for session storage).
+ """
++import logging
++
+ from fastapi import FastAPI
++from fastapi.responses import JSONResponse
++from redis.exceptions import LockNotOwnedError
+ 
+ from .db import get_order, mark_paid
+ from .payments import charge_card
++from .redis_client import redis
+ 
++logger = logging.getLogger(__name__)
++
+ app = FastAPI()
+ 
++# The lock must outlive the slowest pay() call. If it expires while charge_card
++# is still running, a second click can get in and charge again.
++# charge_card uses httpx's default 5s timeouts, so 30s leaves a wide margin.
++PAY_LOCK_TTL_S = 30
+ 
++
+ @app.post("/orders/{order_id}/pay")
+ async def pay(order_id: str):
+-    order = await get_order(order_id)
+-    if order.status == "paid":
+-        return {"status": "already_paid"}
++    # At most one pay() per order at a time, across all workers and replicas.
++    lock = redis.lock(f"lock:pay:{order_id}", timeout=PAY_LOCK_TTL_S, blocking=False)
++    if not await lock.acquire():
++        # Another click is already paying this order; its result is the answer.
++        return JSONResponse(status_code=409, content={"status": "payment_in_progress"})
+ 
+-    # Calls the payment provider; typically takes 300-900ms.
+-    receipt = await charge_card(order.customer_id, order.amount_cents)
++    try:
++        # The status check must happen *inside* the lock. Checking before
++        # acquiring it reopens the same check-then-act race.
++        order = await get_order(order_id)
++        if order.status == "paid":
++            return {"status": "already_paid"}
+ 
+-    await mark_paid(order_id, receipt.id)
+-    return {"status": "paid", "receipt": receipt.id}
++        # Calls the payment provider; typically takes 300-900ms.
++        receipt = await charge_card(order.customer_id, order.amount_cents)
++
++        await mark_paid(order_id, receipt.id)
++        return {"status": "paid", "receipt": receipt.id}
++    finally:
++        try:
++            await lock.release()
++        except LockNotOwnedError:
++            # The TTL ran out before we finished, so another request may have
++            # charged this order too. Our charge already happened; don't turn
++            # it into a 500, but make it loud.
++            logger.error(
++                "pay lock for order %s expired before release (TTL %ss): possible double charge",
++                order_id,
++                PAY_LOCK_TTL_S,
++            )
+diff -ruN before/checkout/redis_client.py after/checkout/redis_client.py
+--- before/checkout/redis_client.py
++++ after/checkout/redis_client.py
+@@ -0,0 +1,8 @@
++import os
++
++from redis.asyncio import Redis
++
++# Every worker on every replica must point at the *same* Redis (the primary),
++# or the pay lock in app.py protects nothing. Reuse the Redis the session
++# storage already talks to.
++redis = Redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379/0"))
+diff -ruN before/tests/conftest.py after/tests/conftest.py
+--- before/tests/conftest.py
++++ after/tests/conftest.py
+@@ -0,0 +1,104 @@
++"""In-memory fakes so the checkout flow runs without Postgres, Redis or the payment provider."""
++import asyncio
++import contextvars
++import sys
++import time
++import types
++from dataclasses import dataclass, field, replace
++
++import fakeredis
++import httpx
++import pytest
++
++# checkout/db.py does `from .pg import pool`; pg.py isn't in this repo, and the
++# tests replace get_order / mark_paid anyway, so a stub module is enough.
++sys.modules.setdefault("checkout.pg", types.ModuleType("checkout.pg"))
++sys.modules["checkout.pg"].pool = None
++
++from checkout import app as app_module  # noqa: E402
++from checkout.db import Order  # noqa: E402
++from checkout.payments import Receipt  # noqa: E402
++
++# Which simulated click ("A" / "B") the current code is running for.
++who = contextvars.ContextVar("who", default="-")
++
++
++@pytest.fixture
++def anyio_backend():
++    return "asyncio"
++
++
++@dataclass
++class Checkout:
++    """One order, one fake provider, a fake Redis, and a timeline of what happened."""
++
++    provider_delay: float = 0.5
++    provider_fails: bool = False
++    orders: dict = field(default_factory=dict, repr=False)
++    charges: list = field(default_factory=list)
++    timeline: list = field(default_factory=list, repr=False)
++    redis: object = field(default=None, repr=False)
++    _t0: float = field(default_factory=time.perf_counter, repr=False)
++
++    def log(self, msg: str) -> None:
++        ms = (time.perf_counter() - self._t0) * 1000
++        self.timeline.append(f"{ms:7.0f}ms  {who.get()}  {msg}")
++
++    def print_timeline(self) -> None:
++        print("\n" + "\n".join(self.timeline))
++
++    # --- fake checkout.db -------------------------------------------------
++    async def get_order(self, order_id: str) -> Order:
++        await asyncio.sleep(0.002)  # DB round-trip
++        order = replace(self.orders[order_id])
++        self.log(f"get_order -> status={order.status}")
++        return order
++
++    async def mark_paid(self, order_id: str, receipt_id: str) -> None:
++        await asyncio.sleep(0.002)
++        self.orders[order_id].status = "paid"
++        self.log(f"mark_paid({receipt_id})")
++
++    # --- fake checkout.payments --------------------------------------------
++    async def charge_card(self, customer_id: str, amount_cents: int) -> Receipt:
++        self.log("charge_card: request sent to provider")
++        await asyncio.sleep(self.provider_delay)
++        if self.provider_fails:
++            self.log("charge_card: provider error, nothing charged")
++            raise httpx.ConnectError("provider unavailable")
++        self.charges.append((customer_id, amount_cents))
++        receipt = Receipt(id=f"ch_{len(self.charges)}")
++        self.log(f"charge_card: CHARGED {amount_cents} -> {receipt.id}")
++        return receipt
++
++    # --- driving the endpoint ----------------------------------------------
++    async def click(self, client, order_id: str, name: str, after: float):
++        await asyncio.sleep(after)
++        who.set(name)
++        self.log(f"POST /orders/{order_id}/pay")
++        resp = await client.post(f"/orders/{order_id}/pay")
++        body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else resp.text
++        self.log(f"<- {resp.status_code} {body}")
++        return resp
++
++    async def clicks(self, order_id: str, *at: float):
++        """Fire one request per offset in `at` (seconds), concurrently."""
++        transport = httpx.ASGITransport(app=app_module.app, raise_app_exceptions=False)
++        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
++            return await asyncio.gather(
++                *(self.click(client, order_id, "ABCDEFGH"[i], t) for i, t in enumerate(at))
++            )
++
++
++@pytest.fixture
++def checkout(monkeypatch):
++    c = Checkout()
++    c.orders["o-1"] = Order(id="o-1", customer_id="cus-1", amount_cents=4200, status="pending")
++    c.orders["o-2"] = Order(id="o-2", customer_id="cus-2", amount_cents=1000, status="pending")
++    c.redis = fakeredis.FakeAsyncRedis()
++    monkeypatch.setattr(app_module, "get_order", c.get_order)
++    monkeypatch.setattr(app_module, "mark_paid", c.mark_paid)
++    monkeypatch.setattr(app_module, "charge_card", c.charge_card)
++    # raising=False: before the fix, app.py has no `redis` at all.
++    monkeypatch.setattr(app_module, "redis", c.redis, raising=False)
++    return c
+diff -ruN before/tests/test_double_click.py after/tests/test_double_click.py
+--- before/tests/test_double_click.py
++++ after/tests/test_double_click.py
+@@ -0,0 +1,13 @@
++import pytest
++
++pytestmark = pytest.mark.anyio
++
++
++@pytest.mark.parametrize("gap", [0.05, 1.0], ids=["clicks-50ms-apart", "clicks-1s-apart"])
++async def test_double_click_charges_card_once(checkout, gap):
++    checkout.provider_delay = 0.5  # the real provider takes 300-900ms
++
++    await checkout.clicks("o-1", 0, gap)
++
++    checkout.print_timeline()
++    assert len(checkout.charges) == 1
+diff -ruN before/tests/test_pay_lock.py after/tests/test_pay_lock.py
+--- before/tests/test_pay_lock.py
++++ after/tests/test_pay_lock.py
+@@ -0,0 +1,56 @@
++import asyncio
++
++import pytest
++
++from checkout import app as app_module
++
++pytestmark = pytest.mark.anyio
++
++
++async def test_second_click_while_first_is_paying_gets_409(checkout):
++    checkout.provider_delay = 0.2
++
++    a, b = await checkout.clicks("o-1", 0, 0.05)
++
++    assert (a.status_code, a.json()["status"]) == (200, "paid")
++    assert (b.status_code, b.json()) == (409, {"status": "payment_in_progress"})
++    assert len(checkout.charges) == 1
++
++
++async def test_lock_is_per_order(checkout):
++    checkout.provider_delay = 0.1
++
++    (a,), (b,) = await asyncio.gather(checkout.clicks("o-1", 0), checkout.clicks("o-2", 0))
++
++    assert a.json()["status"] == b.json()["status"] == "paid"
++    assert len(checkout.charges) == 2
++
++
++async def test_lock_is_released_when_charge_fails(checkout):
++    checkout.provider_delay = 0.01
++    checkout.provider_fails = True
++
++    (first,) = await checkout.clicks("o-1", 0)
++    assert first.status_code == 500
++    assert await checkout.redis.exists("lock:pay:o-1") == 0  # not stuck for 30s
++
++    checkout.provider_fails = False
++    (retry,) = await checkout.clicks("o-1", 0)
++    assert retry.json()["status"] == "paid"
++    assert len(checkout.charges) == 1
++
++
++async def test_lock_has_ttl_while_charging(checkout, monkeypatch):
++    seen = {}
++
++    async def charge_card(customer_id, amount_cents):
++        seen["pttl"] = await checkout.redis.pttl("lock:pay:o-1")
++        return await checkout.charge_card(customer_id, amount_cents)
++
++    monkeypatch.setattr(app_module, "charge_card", charge_card)
++    checkout.provider_delay = 0.01
++
++    await checkout.clicks("o-1", 0)
++
++    # -1 would mean "no expiry": a crashed worker would block this order forever.
++    assert 0 < seen["pttl"] <= app_module.PAY_LOCK_TTL_S * 1000

@@ -1,0 +1,53 @@
+{
+  "expectations": [
+    {
+      "text": "Lists what the user already knows vs. what is missing before proposing any code",
+      "passed": true,
+      "evidence": "Opens with 'What you already know' (HTTP handlers, SQL, Redis as cache) vs 'What's missing' before any code."
+    },
+    {
+      "text": "Tags at least two gaps with an unknown type (concept / API / codebase / behavior)",
+      "passed": true,
+      "evidence": "Gaps tagged: race/check-then-act (concept), Redis lock (concept), redis-py calls (API), double-charge cause (runtime-behavior)."
+    },
+    {
+      "text": "Flags concurrency (or race conditions) as a fundamental worth deeper study, in a sentence or two rather than a lecture",
+      "passed": true,
+      "evidence": "One paragraph: 'This rests on two fundamentals: concurrency and distributed systems... DDIA ch. 8, Kleppmann post.' No lecture."
+    },
+    {
+      "text": "Explains the check-then-act race between get_order and mark_paid using the user's own code",
+      "passed": true,
+      "evidence": "'Line 17 of app.py checks the status and lines 21–23 act on it' plus a timeline of two workers both reading 'pending'."
+    },
+    {
+      "text": "Mentions at least one alternative to a Redis lock (e.g. idempotency key, conditional UPDATE ... WHERE status='pending', unique constraint) with a trade-off",
+      "passed": true,
+      "evidence": "Options B (atomic UPDATE ... WHERE status='pending') and C (idempotency key) with trade-offs; notes the lock fixes H1 only."
+    },
+    {
+      "text": "Asks the user to predict or reason about something before implementing the fix",
+      "passed": true,
+      "evidence": "'Your turn' asks how many charges at 50 ms vs 700 ms offsets and what widens the danger window."
+    },
+    {
+      "text": "Does not modify files or present a complete final implementation in the first turn",
+      "passed": true,
+      "evidence": "No changed-files; only a SET NX PX command sketch, no implementation."
+    },
+    {
+      "text": "Mental model section introduces no more than ~5 core concepts (no full Redis tutorial)",
+      "passed": true,
+      "evidence": "Model has 4 numbered ideas (check-then-act, shared lock location, SET NX+TTL+token, idempotency). Explicitly defers Redlock/fencing. Long-ish but scoped."
+    }
+  ],
+  "summary": {
+    "passed": 8,
+    "failed": 0,
+    "total": 8,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "overall": "Strong checkpoint behaviour. The reply is ~6.4k chars; the model section could be tighter."
+  }
+}

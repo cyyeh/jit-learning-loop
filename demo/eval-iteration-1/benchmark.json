@@ -1,0 +1,485 @@
+{
+  "metadata": {
+    "skill_name": "jit-learning-loop",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "claude-opus-5-5",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-29T13:34:31Z",
+    "evals_run": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 8,
+        "failed": 0,
+        "total": 8,
+        "time_seconds": 168.6,
+        "tokens": 57583,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Lists what the user already knows vs. what is missing before proposing any code",
+          "passed": true,
+          "evidence": "Opens with 'What you already know' (HTTP handlers, SQL, Redis as cache) vs 'What's missing' before any code."
+        },
+        {
+          "text": "Tags at least two gaps with an unknown type (concept / API / codebase / behavior)",
+          "passed": true,
+          "evidence": "Gaps tagged: race/check-then-act (concept), Redis lock (concept), redis-py calls (API), double-charge cause (runtime-behavior)."
+        },
+        {
+          "text": "Flags concurrency (or race conditions) as a fundamental worth deeper study, in a sentence or two rather than a lecture",
+          "passed": true,
+          "evidence": "One paragraph: 'This rests on two fundamentals: concurrency and distributed systems... DDIA ch. 8, Kleppmann post.' No lecture."
+        },
+        {
+          "text": "Explains the check-then-act race between get_order and mark_paid using the user's own code",
+          "passed": true,
+          "evidence": "'Line 17 of app.py checks the status and lines 21–23 act on it' plus a timeline of two workers both reading 'pending'."
+        },
+        {
+          "text": "Mentions at least one alternative to a Redis lock (e.g. idempotency key, conditional UPDATE ... WHERE status='pending', unique constraint) with a trade-off",
+          "passed": true,
+          "evidence": "Options B (atomic UPDATE ... WHERE status='pending') and C (idempotency key) with trade-offs; notes the lock fixes H1 only."
+        },
+        {
+          "text": "Asks the user to predict or reason about something before implementing the fix",
+          "passed": true,
+          "evidence": "'Your turn' asks how many charges at 50 ms vs 700 ms offsets and what widens the danger window."
+        },
+        {
+          "text": "Does not modify files or present a complete final implementation in the first turn",
+          "passed": true,
+          "evidence": "No changed-files; only a SET NX PX command sketch, no implementation."
+        },
+        {
+          "text": "Mental model section introduces no more than ~5 core concepts (no full Redis tutorial)",
+          "passed": true,
+          "evidence": "Model has 4 numbered ideas (check-then-act, shared lock location, SET NX+TTL+token, idempotency). Explicitly defers Redlock/fencing. Long-ish but scoped."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 306.7,
+        "tokens": 69275,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Classifies the core unknown as a behavior unknown (why does it restart) and at least one concept gap (Pod vs container / restart lifecycle)",
+          "passed": true,
+          "evidence": "'Why memory hits 512Mi every ~20 min (behavior...)' plus 'container restart vs pod replacement (concept + API)'."
+        },
+        {
+          "text": "Gives a compact mental model (diagram or causal chain) of Pod, container, and restarts",
+          "passed": true,
+          "evidence": "Two ASCII diagrams: Deployment→ReplicaSet→Pod→Container restart loop, and the limit box vs V8 heap."
+        },
+        {
+          "text": "Asks the user to interpret a specific field of the pasted describe output (e.g. Last State, Exit Code, Restart Count) instead of only predicting in the abstract",
+          "passed": true,
+          "evidence": "Q1: 'Based on your paste, would [raising the liveness timeout] help? Why does /healthz stop answering?' However the agent had already decoded Last State/OOMKilled itself in 'Short version', so the key field was not left for the user."
+        },
+        {
+          "text": "Acknowledges urgency — e.g. notes whether it is an outage and/or offers a quick mitigation — without skipping the learning loop entirely",
+          "passed": true,
+          "evidence": "'Do now (~5 min)' section: save --previous logs, check rollout, roll back or raise limit, before the learning loop."
+        },
+        {
+          "text": "Presents OOMKilled and liveness-probe failure as competing hypotheses or cause vs. symptom",
+          "passed": true,
+          "evidence": "Probes explained in the model; Q1 asks the user to reason whether liveness is the cause; H1–H3 are about memory growth."
+        },
+        {
+          "text": "Does not immediately edit manifests or declare a final fix before the user has engaged with the evidence",
+          "passed": true,
+          "evidence": "No manifest edits; gives a stopgap only and defers root-cause fix until evidence arrives."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 94.9,
+        "tokens": 47609,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Engages with the user's proposal first, stating what is correct about it and why",
+          "passed": true,
+          "evidence": "Opens with 'What's right' covering both of the user's relations."
+        },
+        {
+          "text": "Explains or asks why select_related fits customer (forward FK) while prefetch_related fits items (reverse FK)",
+          "passed": true,
+          "evidence": "'forward FK... JOIN' vs 'reverse side of OrderItem.order... one extra query'."
+        },
+        {
+          "text": "Surfaces the remaining N+1 on item.product (template touches item.product.name)",
+          "passed": true,
+          "evidence": "Points to line 9 of list.html: item.product.name is another FK one level deeper."
+        },
+        {
+          "text": "Uses a question or hint to lead the user to the product N+1 before (or instead of) giving the full answer",
+          "passed": true,
+          "evidence": "Withholds the fix: 'how would you change the plan to cover item.product? Say which tool you'd use and why.' It does name the location directly rather than hinting."
+        },
+        {
+          "text": "Suggests a way to verify query counts (e.g. assertNumQueries, django-debug-toolbar, connection.queries)",
+          "passed": true,
+          "evidence": "Offers to count real queries on seeded data and pin the count with a test."
+        },
+        {
+          "text": "Does not edit views.py or hand over a rewritten file unprompted",
+          "passed": true,
+          "evidence": "No edits; no rewritten file."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "time_seconds": 282.9,
+        "tokens": 68691,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response is written primarily in Traditional Chinese",
+          "passed": true,
+          "evidence": "Entire reply in Traditional Chinese."
+        },
+        {
+          "text": "Keeps Kafka technical terms (offset, consumer group, commit, rebalance) in English",
+          "passed": true,
+          "evidence": "offset, commit, consumer group, rebalance, partition, poll() kept in English."
+        },
+        {
+          "text": "Identifies offset / auto-commit timing as a key missing concept",
+          "passed": true,
+          "evidence": "Model centres on committed offset vs position; auto_commit_interval_ms explained."
+        },
+        {
+          "text": "Introduces delivery semantics (at-least-once) or equivalent idea that duplicates are expected without idempotency",
+          "passed": true,
+          "evidence": "Names at-least-once delivery and flags delivery semantics as a distributed-systems fundamental."
+        },
+        {
+          "text": "Anchors the model to something the user likely knows (e.g. a job queue) and names where the analogy breaks",
+          "passed": true,
+          "evidence": "Anchors to a job queue (Celery/SQS/RabbitMQ) and says the analogy breaks because Kafka has one bookmark per partition, not per-message ack."
+        },
+        {
+          "text": "Asks the user for a prediction before implementing the fix",
+          "passed": true,
+          "evidence": "'換你': asks how many emails get re-sent when one pod is killed, and which setting bounds it."
+        },
+        {
+          "text": "Does not deliver a full rewritten consumer in the first turn",
+          "passed": true,
+          "evidence": "No code changes; fix deferred until after the experiment."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.38,
+        "passed": 3,
+        "failed": 5,
+        "total": 8,
+        "time_seconds": 353.0,
+        "tokens": 57349,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Lists what the user already knows vs. what is missing before proposing any code",
+          "passed": false,
+          "evidence": "Goes straight to 'What's going wrong'; no inventory of what the user knows vs lacks."
+        },
+        {
+          "text": "Tags at least two gaps with an unknown type (concept / API / codebase / behavior)",
+          "passed": false,
+          "evidence": "No unknown-type classification."
+        },
+        {
+          "text": "Flags concurrency (or race conditions) as a fundamental worth deeper study, in a sentence or two rather than a lecture",
+          "passed": false,
+          "evidence": "Never flags concurrency/distributed systems as a fundamental to study."
+        },
+        {
+          "text": "Explains the check-then-act race between get_order and mark_paid using the user's own code",
+          "passed": true,
+          "evidence": "Timeline of click 1 / click 2 both reading 'pending' mapped to the handler."
+        },
+        {
+          "text": "Mentions at least one alternative to a Redis lock (e.g. idempotency key, conditional UPDATE ... WHERE status='pending', unique constraint) with a trade-off",
+          "passed": true,
+          "evidence": "Implements a Postgres conditional UPDATE instead and recommends an idempotency key, with Redis-lock trade-offs."
+        },
+        {
+          "text": "Asks the user to predict or reason about something before implementing the fix",
+          "passed": false,
+          "evidence": "No prediction asked; ends by asking whether payments.internal supports idempotency keys."
+        },
+        {
+          "text": "Does not modify files or present a complete final implementation in the first turn",
+          "passed": false,
+          "evidence": "Modified app.py and db.py (outputs/changed-files/evals/...) and reports a finished, tested fix."
+        },
+        {
+          "text": "Mental model section introduces no more than ~5 core concepts (no full Redis tutorial)",
+          "passed": true,
+          "evidence": "Redis explanation limited to NX, PX and the token; no full tutorial."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 3,
+        "failed": 3,
+        "total": 6,
+        "time_seconds": 216.2,
+        "tokens": 52487,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Classifies the core unknown as a behavior unknown (why does it restart) and at least one concept gap (Pod vs container / restart lifecycle)",
+          "passed": false,
+          "evidence": "No classification of unknowns."
+        },
+        {
+          "text": "Gives a compact mental model (diagram or causal chain) of Pod, container, and restarts",
+          "passed": false,
+          "evidence": "Explains fields section by section; no compact Pod/container/restart model or diagram."
+        },
+        {
+          "text": "Asks the user to interpret a specific field of the pasted describe output (e.g. Last State, Exit Code, Restart Count) instead of only predicting in the abstract",
+          "passed": false,
+          "evidence": "Interprets every field itself; asks for command output only at the end."
+        },
+        {
+          "text": "Acknowledges urgency — e.g. notes whether it is an outage and/or offers a quick mitigation — without skipping the learning loop entirely",
+          "passed": true,
+          "evidence": "'Stop the bleeding' with rollback / limit bump, plus a reusable checklist and exit-code cheat sheet."
+        },
+        {
+          "text": "Presents OOMKilled and liveness-probe failure as competing hypotheses or cause vs. symptom",
+          "passed": true,
+          "evidence": "'The probes are timing out... but they aren't what restarts the pod.'"
+        },
+        {
+          "text": "Does not immediately edit manifests or declare a final fix before the user has engaged with the evidence",
+          "passed": true,
+          "evidence": "No manifest edits; root cause framed as a hypothesis to confirm."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.83,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 106.2,
+        "tokens": 38018,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Engages with the user's proposal first, stating what is correct about it and why",
+          "passed": true,
+          "evidence": "Opens with 'What you got right'."
+        },
+        {
+          "text": "Explains or asks why select_related fits customer (forward FK) while prefetch_related fits items (reverse FK)",
+          "passed": true,
+          "evidence": "Forward FK → select_related; reverse FK → prefetch_related."
+        },
+        {
+          "text": "Surfaces the remaining N+1 on item.product (template touches item.product.name)",
+          "passed": true,
+          "evidence": "Flags item.product on line 9 and measures 251 → 152 → 3 queries."
+        },
+        {
+          "text": "Uses a question or hint to lead the user to the product N+1 before (or instead of) giving the full answer",
+          "passed": false,
+          "evidence": "Gives the finished queryset (prefetch_related('items__product')) directly."
+        },
+        {
+          "text": "Suggests a way to verify query counts (e.g. assertNumQueries, django-debug-toolbar, connection.queries)",
+          "passed": true,
+          "evidence": "assertNumQueries test, django-debug-toolbar, and a measured query-count table."
+        },
+        {
+          "text": "Does not edit views.py or hand over a rewritten file unprompted",
+          "passed": true,
+          "evidence": "Did not edit views.py; supplies a code snippet only."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.57,
+        "passed": 4,
+        "failed": 3,
+        "total": 7,
+        "time_seconds": 871.0,
+        "tokens": 75031,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Response is written primarily in Traditional Chinese",
+          "passed": true,
+          "evidence": "Entire reply in Traditional Chinese."
+        },
+        {
+          "text": "Keeps Kafka technical terms (offset, consumer group, commit, rebalance) in English",
+          "passed": true,
+          "evidence": "committed offset, partition, poll(), rebalance, SIGTERM kept in English."
+        },
+        {
+          "text": "Identifies offset / auto-commit timing as a key missing concept",
+          "passed": true,
+          "evidence": "Section '問題 1' shows auto-commit only fires inside poll(), so the bookmark lags up to a whole batch."
+        },
+        {
+          "text": "Introduces delivery semantics (at-least-once) or equivalent idea that duplicates are expected without idempotency",
+          "passed": true,
+          "evidence": "'這是 at-least-once，不是 exactly-once' plus the idempotency recommendation."
+        },
+        {
+          "text": "Anchors the model to something the user likely knows (e.g. a job queue) and names where the analogy breaks",
+          "passed": false,
+          "evidence": "Uses a bookmark (書籤) metaphor, but never anchors to something the user knows (e.g. a job queue) or says where the analogy breaks."
+        },
+        {
+          "text": "Asks the user for a prediction before implementing the fix",
+          "passed": false,
+          "evidence": "No prediction; the fix is already implemented. It ends with one comprehension question after the fix."
+        },
+        {
+          "text": "Does not deliver a full rewritten consumer in the first turn",
+          "passed": false,
+          "evidence": "Rewrote consumer.py (manual commit, SIGTERM handler, max_poll_records=20) and verified it against a local Kafka."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 213.275,
+        "stddev": 99.3049,
+        "min": 94.9,
+        "max": 306.7
+      },
+      "tokens": {
+        "mean": 60789.5,
+        "stddev": 10302.8254,
+        "min": 47609,
+        "max": 69275
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.57,
+        "stddev": 0.1903,
+        "min": 0.38,
+        "max": 0.83
+      },
+      "time_seconds": {
+        "mean": 386.6,
+        "stddev": 338.3453,
+        "min": 106.2,
+        "max": 871.0
+      },
+      "tokens": {
+        "mean": 55721.25,
+        "stddev": 15268.5019,
+        "min": 38018,
+        "max": 75031
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.43",
+      "time_seconds": "-173.3",
+      "tokens": "+5068"
+    }
+  },
+  "notes": [
+    "The gain is entirely in learning behaviours. Every correctness assertion (explain the race, find item.product, FK vs reverse FK, at-least-once, zh-TW reply) passed in both configs: the baseline is technically excellent. Discriminating assertions: gap map, unknown-type tags, fundamentals flag, prediction checkpoint, withholding the fix.",
+    "Time is not like-for-like. With the skill the first turn stops at a checkpoint (213s mean); the baseline goes on to implement and verify (387s mean, with eval 4 at 871s because it ran a real Kafka). A full with-skill session spans several turns.",
+    "Weak spots even when passing: eval 2 decoded OOMKilled/137 itself before asking (the urgency rule pulls diagnosis forward); eval 3 named item.product outright instead of hinting; eval 1's first reply is ~6.4k chars, long for a minimum model.",
+    "n=1 per config, so there is no variance estimate. Treat the deltas as directional."
+  ]
+}

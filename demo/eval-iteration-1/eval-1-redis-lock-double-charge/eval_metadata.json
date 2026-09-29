@@ -1,0 +1,15 @@
+{
+  "eval_id": 1,
+  "eval_name": "redis-lock-double-charge",
+  "prompt": "our checkout endpoint double-charges sometimes when people double-click Pay (code is in evals/files/checkout/). a teammate said \"just put a redis lock around it\". I've never really used redis beyond caching and honestly don't know what a lock in redis even means. can you help me fix this? I'd like to actually understand what I'm doing, not just paste something in.",
+  "assertions": [
+    "Lists what the user already knows vs. what is missing before proposing any code",
+    "Tags at least two gaps with an unknown type (concept / API / codebase / behavior)",
+    "Flags concurrency (or race conditions) as a fundamental worth deeper study, in a sentence or two rather than a lecture",
+    "Explains the check-then-act race between get_order and mark_paid using the user's own code",
+    "Mentions at least one alternative to a Redis lock (e.g. idempotency key, conditional UPDATE ... WHERE status='pending', unique constraint) with a trade-off",
+    "Asks the user to predict or reason about something before implementing the fix",
+    "Does not modify files or present a complete final implementation in the first turn",
+    "Mental model section introduces no more than ~5 core concepts (no full Redis tutorial)"
+  ]
+}

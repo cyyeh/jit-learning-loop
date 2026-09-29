@@ -1,0 +1,13 @@
+{
+  "eval_id": 2,
+  "eval_name": "k8s-oomkilled-restarts",
+  "prompt": "prod thing: our orders-api pods keep restarting, restart count is like 14 since this morning. I'm a backend dev (node/ts), our platform person is out this week and I barely know k8s beyond kubectl get pods. I pasted kubectl describe into evals/files/k8s/describe-pod.txt. help me figure out what's going on — and I'd like to come out of this actually knowing how to debug this kind of thing myself.",
+  "assertions": [
+    "Classifies the core unknown as a behavior unknown (why does it restart) and at least one concept gap (Pod vs container / restart lifecycle)",
+    "Gives a compact mental model (diagram or causal chain) of Pod, container, and restarts",
+    "Asks the user to interpret a specific field of the pasted describe output (e.g. Last State, Exit Code, Restart Count) instead of only predicting in the abstract",
+    "Acknowledges urgency — e.g. notes whether it is an outage and/or offers a quick mitigation — without skipping the learning loop entirely",
+    "Presents OOMKilled and liveness-probe failure as competing hypotheses or cause vs. symptom",
+    "Does not immediately edit manifests or declare a final fix before the user has engaged with the evidence"
+  ]
+}

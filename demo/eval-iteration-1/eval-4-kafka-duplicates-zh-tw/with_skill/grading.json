@@ -1,0 +1,48 @@
+{
+  "expectations": [
+    {
+      "text": "Response is written primarily in Traditional Chinese",
+      "passed": true,
+      "evidence": "Entire reply in Traditional Chinese."
+    },
+    {
+      "text": "Keeps Kafka technical terms (offset, consumer group, commit, rebalance) in English",
+      "passed": true,
+      "evidence": "offset, commit, consumer group, rebalance, partition, poll() kept in English."
+    },
+    {
+      "text": "Identifies offset / auto-commit timing as a key missing concept",
+      "passed": true,
+      "evidence": "Model centres on committed offset vs position; auto_commit_interval_ms explained."
+    },
+    {
+      "text": "Introduces delivery semantics (at-least-once) or equivalent idea that duplicates are expected without idempotency",
+      "passed": true,
+      "evidence": "Names at-least-once delivery and flags delivery semantics as a distributed-systems fundamental."
+    },
+    {
+      "text": "Anchors the model to something the user likely knows (e.g. a job queue) and names where the analogy breaks",
+      "passed": true,
+      "evidence": "Anchors to a job queue (Celery/SQS/RabbitMQ) and says the analogy breaks because Kafka has one bookmark per partition, not per-message ack."
+    },
+    {
+      "text": "Asks the user for a prediction before implementing the fix",
+      "passed": true,
+      "evidence": "'換你': asks how many emails get re-sent when one pod is killed, and which setting bounds it."
+    },
+    {
+      "text": "Does not deliver a full rewritten consumer in the first turn",
+      "passed": true,
+      "evidence": "No code changes; fix deferred until after the experiment."
+    }
+  ],
+  "summary": {
+    "passed": 7,
+    "failed": 0,
+    "total": 7,
+    "pass_rate": 1.0
+  },
+  "eval_feedback": {
+    "overall": "Model answer for the skill. It also read the kafka-python source first but withheld the finding to keep the prediction honest."
+  }
+}

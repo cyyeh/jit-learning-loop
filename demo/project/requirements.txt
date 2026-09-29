@@ -1,0 +1,7 @@
+# Versions the demo session actually ran with (Python 3.12).
+fastapi==0.141.1
+httpx==0.28.1
+redis==8.1.0
+fakeredis[lua]==2.38.0
+anyio==4.15.1
+pytest==9.1.1

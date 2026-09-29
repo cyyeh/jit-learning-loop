@@ -17,6 +17,8 @@ don't know → agent narrows the unknown → you build a mental model
 
 The question it keeps asking is: *which part of the cognitive work should you keep this time, so you need less help next time?*
 
+**▶ [See it in action](https://cyyeh.github.io/jit-learning-loop/)**: a full recorded session (in Traditional Chinese) where an engineer new to Redis locks fixes a double-charge bug and comes away with three transferable lessons. The raw transcript, test output and final code are in [`demo/`](demo/).
+
 ## What the skill does
 
 | Step | What happens |
@@ -99,6 +101,7 @@ evals/
   files/                     fixtures: checkout race, k8s OOMKilled, Django N+1, Kafka duplicates
 docs/
   methodology.zh-TW.md       the source essay this skill was distilled from
+demo/                        recorded session + GitHub Pages site (transcript, artifacts, final code, eval snapshot)
 scripts/
   validate.mjs               Agent Skills spec check (no dependencies; runs in CI)
   install.sh                 dev symlink installer (any agent's skills directory)

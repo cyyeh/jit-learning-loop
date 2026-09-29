@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jit-learning-loop · Demo</title>
+<meta name="description" content="一次真實錄製的 session：Agent 在修好 checkout double charge 的同時，幫學習者建立 race condition 與 Redis lock 的 mental model。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/styles/github.min.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.10.0/styles/github-dark.min.css" media="(prefers-color-scheme: dark)">
+<style>
+  :root {
+    --bg: #f6f3ec;
+    --surface: #fffdf8;
+    --surface-2: #efebe1;
+    --ink: #1f1c16;
+    --ink-2: #4a453b;
+    --muted: #7a7466;
+    --line: #e2ddd0;
+    --accent: #0f6b5f;
+    --accent-soft: #dcefe9;
+    --learner: #9a5b13;
+    --learner-soft: #f7ead6;
+    --check: #b4411b;
+    --check-soft: #fbe3d8;
+    --code-bg: #f1ede3;
+    --term-bg: #1c1a15;
+    --term-ink: #e8e3d6;
+    --add: #1f7a3a;
+    --add-bg: #e3f4e6;
+    --del: #a3302a;
+    --del-bg: #fbe5e3;
+    --shadow: 0 1px 2px rgba(31, 28, 22, .06), 0 8px 24px rgba(31, 28, 22, .06);
+    --radius: 14px;
+    --sans: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+    --serif: "Noto Serif TC", "Songti TC", serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #13120f;
+      --surface: #1b1a16;
+      --surface-2: #24221d;
+      --ink: #ece8de;
+      --ink-2: #c9c3b5;
+      --muted: #9a9384;
+      --line: #2f2c25;
+      --accent: #5cc4b0;
+      --accent-soft: #173a34;
+      --learner: #e0a55c;
+      --learner-soft: #3a2a15;
+      --check: #f08a63;
+      --check-soft: #3d1f14;
+      --code-bg: #24221d;
+      --term-bg: #0d0c0a;
+      --term-ink: #e8e3d6;
+      --add: #7fd99a;
+      --add-bg: #15301d;
+      --del: #f19a92;
+      --del-bg: #3a1a17;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.75 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-underline-offset: 3px; }
+  code, pre, kbd { font-family: var(--mono); }
+  .wrap { max-width: 1160px; margin: 0 auto; padding-inline: 16px; }
+
+  /* ---------- hero ---------- */
+  header.hero { padding-block: 72px 40px; }
+  .eyebrow {
+    display: inline-flex; gap: 8px; align-items: center;
+    font: 600 13px/1 var(--mono); letter-spacing: .04em; color: var(--accent);
+    background: var(--accent-soft); padding: 7px 12px; border-radius: 999px;
+  }
+  h1 {
+    font: 900 clamp(34px, 6vw, 60px)/1.15 var(--serif);
+    letter-spacing: -.01em; margin: 22px 0 18px; max-width: 16em;
+  }
+  .lead { font-size: clamp(17px, 2.2vw, 19px); color: var(--ink-2); max-width: 40em; margin: 0; }
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 36px 0 28px; }
+  .stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; }
+  .stat b { display: block; font: 900 30px/1.1 var(--serif); }
+  .stat span { color: var(--muted); font-size: 14px; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .install {
+    display: flex; align-items: center; gap: 10px; max-width: 100%;
+    background: var(--term-bg); color: var(--term-ink);
+    border-radius: 10px; padding: 10px 10px 10px 16px; font: 14px/1.4 var(--mono);
+  }
+  .install code { overflow-x: auto; white-space: nowrap; }
+  .install .prompt { color: #8f8a7c; user-select: none; }
+  button.copy {
+    font: 600 12px/1 var(--sans); border: 0; border-radius: 7px; padding: 8px 10px; cursor: pointer;
+    background: #34312a; color: var(--term-ink); flex-shrink: 0;
+  }
+  button.copy:hover { background: #45413a; }
+  .ghost { font-weight: 500; text-decoration: none; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); color: var(--ink); background: var(--surface); }
+  .ghost:hover { border-color: var(--accent); }
+
+  /* ---------- sections ---------- */
+  section { padding-block: 44px; border-top: 1px solid var(--line); }
+  h2 { font: 900 clamp(26px, 3.6vw, 34px)/1.25 var(--serif); margin: 0 0 10px; }
+  .section-lead { color: var(--ink-2); margin: 0 0 28px; max-width: 44em; }
+  blockquote.core {
+    margin: 0; padding: 22px 26px; border-left: 4px solid var(--accent);
+    background: var(--surface); border-radius: 0 var(--radius) var(--radius) 0;
+    font: 600 clamp(18px, 2.4vw, 22px)/1.6 var(--serif);
+  }
+  blockquote.core small { display: block; margin-top: 8px; font: 400 14px/1.5 var(--sans); color: var(--muted); }
+
+  /* loop strip */
+  .loop { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; margin: 28px 0 0; padding: 0; }
+  .loop li {
+    list-style: none; background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px 12px 14px; font-size: 14px; line-height: 1.45; position: relative;
+  }
+  .loop li b { display: block; font-size: 15px; margin-bottom: 4px; }
+  .loop li .n { font: 600 12px/1 var(--mono); color: var(--muted); }
+  .loop li.checkpoint { border-color: var(--check); background: var(--check-soft); }
+  .loop li.checkpoint .n { color: var(--check); }
+
+  /* ---------- session layout ---------- */
+  .session { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 40px; align-items: start; }
+  nav.rail { position: sticky; top: 24px; }
+  nav.rail h3 { font: 600 12px/1 var(--mono); letter-spacing: .06em; color: var(--muted); text-transform: uppercase; margin: 0 0 12px; }
+  nav.rail ol { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--line); }
+  nav.rail li { padding: 6px 0 6px 14px; margin-left: -2px; border-left: 2px solid transparent; font-size: 14px; color: var(--muted); transition: color .2s, border-color .2s; }
+  nav.rail li.on { color: var(--ink); border-left-color: var(--accent); font-weight: 500; }
+  nav.rail li.checkpoint.on { border-left-color: var(--check); }
+  nav.rail .turnlinks { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 6px; }
+  nav.rail .turnlinks a { font: 600 12px/1 var(--mono); padding: 7px 9px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); text-decoration: none; color: var(--ink-2); }
+  nav.rail .turnlinks a.on { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+
+  .turn { margin-bottom: 34px; scroll-margin-top: 20px; }
+  .turn-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 10px; }
+  .who { font: 600 13px/1 var(--mono); padding: 7px 10px; border-radius: 8px; }
+  .turn.user .who { background: var(--learner-soft); color: var(--learner); }
+  .turn.agent .who { background: var(--accent-soft); color: var(--accent); }
+  .chip { font-size: 12.5px; line-height: 1; padding: 6px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-2); background: var(--surface); }
+  .chip.checkpoint { border-color: var(--check); color: var(--check); background: var(--check-soft); }
+  .raw { margin-left: auto; font: 12px/1 var(--mono); color: var(--muted); }
+
+  .note {
+    display: flex; gap: 10px; margin: 0 0 12px; padding: 12px 14px; border-radius: 12px;
+    background: var(--surface-2); color: var(--ink-2); font-size: 14.5px; line-height: 1.65;
+  }
+  .note::before { content: "導讀"; flex-shrink: 0; font: 600 11px/1.9 var(--mono); color: var(--muted); letter-spacing: .08em; }
+
+  .bubble { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 6px 24px; position: relative; }
+  .turn.user .bubble { background: var(--learner-soft); border-color: transparent; box-shadow: none; }
+  .bubble.folded { max-height: 560px; overflow: hidden; }
+  .bubble.folded::after {
+    content: ""; position: absolute; inset: auto 0 0 0; height: 140px; border-radius: 0 0 var(--radius) var(--radius);
+    background: linear-gradient(to bottom, transparent, var(--surface) 85%);
+  }
+  .unfold {
+    display: block; margin: -22px auto 0; position: relative; z-index: 1;
+    font: 600 14px/1 var(--sans); padding: 11px 18px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink); box-shadow: var(--shadow);
+  }
+  .unfold:hover { border-color: var(--accent); }
+
+  /* rendered markdown */
+  .md h1 { font: 700 22px/1.4 var(--sans); margin: 22px 0 10px; }
+  .md h2 { font: 700 20px/1.4 var(--sans); margin: 26px 0 10px; }
+  .md h3 { font: 700 17px/1.4 var(--sans); margin: 22px 0 8px; }
+  .md p, .md ul, .md ol, .md table, .md pre, .md blockquote { margin: 12px 0; }
+  .md ul, .md ol { padding-left: 1.4em; }
+  .md li { margin: 4px 0; }
+  .md code { font-size: .88em; background: var(--code-bg); padding: .12em .38em; border-radius: 5px; }
+  .md pre { background: var(--code-bg); border-radius: 10px; padding: 14px 16px; overflow-x: auto; line-height: 1.55; }
+  .md pre code { background: none; padding: 0; font-size: 13.5px; }
+  .md pre code.hljs { background: none; padding: 0; }
+  .md blockquote { margin-left: 0; padding: 4px 16px; border-left: 3px solid var(--line); color: var(--ink-2); }
+  .md table { border-collapse: collapse; width: 100%; font-size: 14.5px; display: block; overflow-x: auto; }
+  .md th, .md td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  .md th { background: var(--surface-2); }
+  .md a code { text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+
+  /* evidence */
+  .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+  .card-head b { font-size: 15px; }
+  .card-head a, .card-head span { font: 12px/1 var(--mono); color: var(--muted); }
+  .badge { font: 600 12px/1 var(--mono); padding: 5px 8px; border-radius: 6px; }
+  .badge.fail { background: var(--del-bg); color: var(--del); }
+  .badge.pass { background: var(--add-bg); color: var(--add); }
+  pre.term {
+    margin: 0; padding: 16px 18px; background: var(--term-bg); color: var(--term-ink);
+    font: 12.5px/1.6 var(--mono); overflow: auto; max-height: 420px; white-space: pre;
+  }
+  pre.term span { display: inline-block; min-width: 100%; }
+  pre.term .hl { color: #ffd37a; }
+  pre.term .bad { color: #ff8f84; }
+  pre.term .good { color: #8fe0a6; }
+  pre.diff { margin: 0; font: 12.5px/1.6 var(--mono); overflow: auto; max-height: 560px; padding: 10px 0; background: var(--surface); }
+  pre.diff span { display: block; padding: 0 18px; white-space: pre; }
+  pre.diff .a { background: var(--add-bg); color: var(--add); }
+  pre.diff .d { background: var(--del-bg); color: var(--del); }
+  pre.diff .h { color: var(--muted); }
+  pre.diff .f { font-weight: 600; color: var(--ink); background: var(--surface-2); margin-top: 8px; }
+
+  /* comparison */
+  table.cmp { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--radius); overflow: hidden; font-size: 15px; }
+  table.cmp th, table.cmp td { padding: 12px 16px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  table.cmp thead th { background: var(--surface-2); font-size: 14px; }
+  table.cmp td.y { color: var(--add); font-weight: 600; white-space: nowrap; }
+  table.cmp td.n { color: var(--del); font-weight: 600; white-space: nowrap; }
+  .cmp-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); }
+  .kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+
+  .method { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  .method .card { padding: 18px 20px; }
+  .method h3 { margin: 0 0 8px; font-size: 16px; }
+  .method p, .method ul { margin: 0; color: var(--ink-2); font-size: 15px; }
+  .method ul { padding-left: 1.2em; }
+
+  footer { padding-block: 36px 56px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+  .error { padding: 14px 18px; border-radius: 12px; background: var(--check-soft); color: var(--check); }
+
+  @media (max-width: 960px) {
+    .session { grid-template-columns: minmax(0, 1fr); gap: 0; }
+    nav.rail { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 10px 0; margin: 0 -16px 16px; padding-left: 16px; padding-right: 16px; border-bottom: 1px solid var(--line); }
+    nav.rail h3, nav.rail ol { display: none; }
+    nav.rail .turnlinks { margin: 0; flex-wrap: nowrap; overflow-x: auto; }
+    .loop { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .grid-2, .method { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 640px) {
+    header.hero { padding-block-start: 48px; }
+    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .loop { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .kpis { grid-template-columns: minmax(0, 1fr); }
+    .bubble { padding: 4px 16px; }
+    .raw { margin-left: 0; width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero wrap">
+  <span class="eyebrow">jit-learning-loop · DEMO</span>
+  <h1>修好 bug，也帶走一個 mental model</h1>
+  <p class="lead">這是一次完整錄下來的 session。一位工程師第一次碰 Redis lock，要修 checkout 偶爾 double charge 的問題。看 Agent 在把 task 做完的同時，怎麼把一部分 cognitive work 留給使用者，讓他下次不再需要同樣程度的幫助。</p>
+
+  <div class="stats" id="stats">
+    <div class="stat"><b>3</b><span>輪對話就修好並驗證</span></div>
+    <div class="stat"><b>3</b><span>個被實驗推翻的誤解</span></div>
+    <div class="stat"><b>6</b><span>個 test 全部通過</span></div>
+    <div class="stat"><b id="lesson-count">3</b><span>條 transferable lessons</span></div>
+  </div>
+
+  <div class="cta">
+    <div class="install"><span class="prompt">$</span><code id="install-cmd">npx skills add cyyeh/jit-learning-loop</code><button class="copy" data-copy="install-cmd">複製</button></div>
+    <a class="ghost" href="https://github.com/cyyeh/jit-learning-loop">GitHub →</a>
+  </div>
+</header>
+
+<section class="wrap" id="idea">
+  <h2>核心問題</h2>
+  <blockquote class="core">「這次我要把哪一部分 cognitive work 留給自己，下次才不需要同樣程度的幫助？」
+    <small>一般的 agentic coding 流程是：不會 → Agent 做 → 能跑 → 下一題。這個 skill 把它改成：Agent 先縮小未知範圍 → 你建立 mental model → 一起實作 → 你驗證 → 留下可遷移的模型。</small>
+  </blockquote>
+  <ol class="loop" id="loop"></ol>
+</section>
+
+<section class="wrap" id="session">
+  <h2>Session 全紀錄</h2>
+  <p class="section-lead">下面每一輪都是原始紀錄，沒有潤飾。每輪上方的「導讀」是我們加的註解，標出這一輪對應 loop 的哪幾步、值得注意的地方。</p>
+  <div class="session">
+    <nav class="rail" aria-label="Loop 進度">
+      <h3>Loop 進度</h3>
+      <ol id="rail"></ol>
+      <div class="turnlinks" id="turnlinks"></div>
+    </nav>
+    <div id="turns"><p class="note">載入紀錄中…</p></div>
+  </div>
+</section>
+
+<section class="wrap" id="evidence">
+  <h2>證據：實驗前後</h2>
+  <p class="section-lead">Agent 跑過的每個指令輸出都存成檔案。左邊是修正前的重現測試：同一個 process、同一個 event loop，兩個 request 相隔 50ms 就扣了兩次卡。右邊是修正後的結果。下面是 Turn 6 用來檢驗學習者答案的實驗：把 <code>get_order</code> 移到 lock 外面、把 TTL 縮短，各會發生什麼事。</p>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head"><b>修正前 <span class="badge fail">1 failed</span></b><a href="https://github.com/cyyeh/jit-learning-loop/blob/main/demo/transcript/artifacts/04-repro-before-fix.txt">原始檔</a></div>
+      <pre class="term" id="art-before">載入中…</pre>
+    </div>
+    <div class="card">
+      <div class="card-head"><b>修正後 <span class="badge pass">6 passed</span></b><a href="https://github.com/cyyeh/jit-learning-loop/blob/main/demo/transcript/artifacts/04-tests-after-fix.txt">原始檔</a></div>
+      <pre class="term" id="art-after">載入中…</pre>
+    </div>
+  </div>
+  <div class="card" style="margin-top:18px">
+    <div class="card-head"><b>Turn 6：用實驗檢驗學習者的答案</b><a href="https://github.com/cyyeh/jit-learning-loop/blob/main/demo/transcript/artifacts/06-check-answers-experiment.txt">原始檔</a></div>
+    <pre class="term" id="art-check">載入中…</pre>
+  </div>
+  <div class="card" style="margin-top:18px">
+    <div class="card-head"><b>完整 diff（相對於原始 code）</b><a href="https://github.com/cyyeh/jit-learning-loop/blob/main/demo/changes.diff">changes.diff</a></div>
+    <pre class="diff" id="diff">載入中…</pre>
+  </div>
+</section>
+
+<section class="wrap" id="log">
+  <h2>留下來的東西：Learning log</h2>
+  <p class="section-lead">Session 結束時，Agent 只保留能遷移到別的問題上的 lessons。「lock 放在哪個檔案」這種 local knowledge 不算。這份 log 也是下次判斷該給多少協助（fading level）的依據。</p>
+  <div class="bubble md" id="learning-log"><p>載入中…</p></div>
+</section>
+
+<section class="wrap" id="compare">
+  <h2>對照：沒有這個 skill 的 Agent</h2>
+  <p class="section-lead">同樣的 4 個測試情境（Redis lock、k8s OOMKilled、Django N+1、Kafka 重複寄信），分別在有 skill 和沒有 skill 的情況下各跑一次，比較第一輪回覆。兩邊的技術品質都很高，差別在於誰在思考。</p>
+  <div class="kpis">
+    <div class="stat"><b>100%</b><span>有 skill：學習行為 assertions 通過率（27/27）</span></div>
+    <div class="stat"><b>57%</b><span>沒有 skill：通過率（15/27）</span></div>
+    <div class="stat"><b>4 / 4</b><span>技術正確性：兩邊都找到真正的 root cause</span></div>
+  </div>
+  <div class="cmp-wrap">
+    <table class="cmp">
+      <thead><tr><th>行為</th><th>有 skill</th><th>沒有 skill</th></tr></thead>
+      <tbody>
+        <tr><td>寫 code 前先列出「已有 vs 缺少」，並標註 unknown 類型</td><td class="y">4 / 4</td><td class="n">0 / 4</td></tr>
+        <tr><td>第一輪先請使用者預測或解讀 evidence</td><td class="y">4 / 4</td><td class="n">0 / 4</td></tr>
+        <tr><td>第一輪不直接交付完整 fix（使用者自己提方案時，用提示引導而不是直接給答案）</td><td class="y">4 / 4</td><td class="n">1 / 4</td></tr>
+        <tr><td>把 concurrency、distributed systems 標成值得另外深入學的 fundamentals</td><td class="y">3 / 3</td><td class="n">0 / 3</td></tr>
+        <tr><td>找到真正的 root cause、提出正確修法</td><td class="y">4 / 4</td><td class="y">4 / 4</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="section-lead" style="margin-top:16px">完整的 benchmark、評分依據和 8 份原始回覆放在 <a href="https://github.com/cyyeh/jit-learning-loop/tree/main/demo/eval-iteration-1">demo/eval-iteration-1/</a>。</p>
+</section>
+
+<section class="wrap" id="method">
+  <h2>這份紀錄怎麼產生的</h2>
+  <div class="method">
+    <div class="card">
+      <h3>Agent 那一方：真實輸出</h3>
+      <p>用 Claude Code 的 subagent 載入 <code>skills/jit-learning-loop/SKILL.md</code>，在 <a href="https://github.com/cyyeh/jit-learning-loop/tree/main/demo/project">demo/project/</a> 這個真實的 Python 專案裡工作：讀 code、建 virtualenv、寫測試、跑測試、改 code。每一輪回覆原封不動存成 <code>transcript/NN-agent.md</code>，指令輸出存在 <code>transcript/artifacts/</code>。</p>
+    </div>
+    <div class="card">
+      <h3>使用者那一方：模擬的學習者</h3>
+      <p>使用者的回覆（<code>transcript/NN-user.md</code>）由 Claude 扮演一位「第一次碰 Redis lock 的後端工程師」撰寫，而且刻意帶了常見的誤解（例如「asyncio 是 single-thread，所以不會 race」），用來展示預測被實驗推翻時，skill 如何修正 mental model。</p>
+    </div>
+    <div class="card">
+      <h3>情境與程式碼</h3>
+      <p>checkout 服務的程式碼來自 repo 的 <code>evals/files/checkout/</code>：一個 FastAPI endpoint，先檢查 order 狀態、再呼叫 payment provider（300–900ms），最後才寫回 paid，是典型的 check-then-act race。</p>
+    </div>
+    <div class="card">
+      <h3>自己重跑</h3>
+      <ul>
+        <li><code>cd demo/project && uv venv && uv pip install -r requirements.txt</code></li>
+        <li><code>.venv/bin/python -m pytest tests</code></li>
+        <li>本機預覽這個頁面：<code>python3 -m http.server -d demo</code></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer class="wrap">
+  <a href="https://github.com/cyyeh/jit-learning-loop">cyyeh/jit-learning-loop</a> · Apache-2.0 · 方法論原文見 <a href="https://github.com/cyyeh/jit-learning-loop/blob/main/docs/methodology.zh-TW.md">docs/methodology.zh-TW.md</a>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@14.1.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.10.0/build/highlight.min.js"></script>
+<script>
+const STEPS = [
+  { id: "calibrate",  n: "0", name: "校準",        desc: "判斷熟悉度與已知錨點" },
+  { id: "gap",        n: "1", name: "Gap map",     desc: "已有 vs 缺少，標註 unknown 類型" },
+  { id: "model",      n: "2", name: "最小模型",     desc: "3–5 個概念與它們的關係" },
+  { id: "predict",    n: "3", name: "預測",         desc: "Hypotheses，先讓使用者預測", checkpoint: true },
+  { id: "implement",  n: "4", name: "實驗與實作",   desc: "對照預測，做最小的修改" },
+  { id: "diff",       n: "5", name: "解釋 diff",    desc: "Invariants 與 failure modes" },
+  { id: "check",      n: "6", name: "檢驗",         desc: "3 個測試 transfer 的問題", checkpoint: true },
+  { id: "lessons",    n: "7", name: "Lessons",      desc: "1–3 條可遷移的 lessons" },
+];
+
+const TURNS = [
+  { n: 1, who: "user", steps: [],
+    note: "使用者明確說「想真的搞懂」，這就是 skill 的觸發訊號。同事給的建議（Redis lock）只是其中一種解法，這點後面會被拿出來討論。" },
+  { n: 2, who: "agent", steps: ["calibrate", "gap", "model", "predict"],
+    note: "還沒改任何 code。先列出已有與缺少的知識並標註類型，然後給一張時間線，也點出「cache 的類比在哪裡斷掉」：cache 過期只是慢，lock 過期是扣兩次錢。最後提出 3 個 hypotheses，停下來請使用者預測。" },
+  { n: 3, who: "user", steps: ["predict"],
+    note: "預測裡帶著一個很常見的誤解：「asyncio 是 single-thread，所以同一個 process 裡不會 race」。使用者也帶回 prod 的證據（兩筆 charge 相差 180ms、第一個 request 回 200）。" },
+  { n: 4, who: "agent", steps: ["implement", "diff", "check"],
+    note: "整個 session 最有價值的一刻：實驗顯示 50ms 扣了兩次，而且就在同一個 event loop 裡。Agent 先肯定使用者對的那一半，再用「服務生顧很多桌」修正 mental model。接著全速實作並驗證，用 invariants 和 failure modes 解釋 diff，最後出 3 個測試 transfer 的問題。" },
+  { n: 5, who: "user", steps: ["check"],
+    note: "一題答對、一題對一半（沒發現把 check 移到 lock 外面會讓 race 回來）、一題答錯（以為 release 會刪掉別人的 lock）。使用者也主動說 idempotency key 想下次自己加，等於自己要求 fading 到 level 2。" },
+  { n: 6, who: "agent", steps: ["check", "lessons"],
+    note: "Agent 沒有只講對或錯，而是把第 2、3 題直接跑成實驗，拿 timeline 對照使用者的推理。第 2 題揭露「lock 保護的是決定，不是某個 function」；第 3 題證明 token 擋的正是使用者擔心的那件事。使用者想自己做的 Idempotency-Key，只給引導問題、不給答案（level 2）。最後寫下只含 transferable lessons 的 learning log。" },
+];
+
+const GH = "https://github.com/cyyeh/jit-learning-loop/blob/main/demo/";
+const TREE = "https://github.com/cyyeh/jit-learning-loop/tree/main/demo/";
+const pad = (n) => String(n).padStart(2, "0");
+const turnFile = (t) => `transcript/${pad(t.n)}-${t.who}.md`;
+
+marked.setOptions({ gfm: true, breaks: false });
+
+function renderMarkdown(src) {
+  const html = DOMPurify.sanitize(marked.parse(src));
+  const el = document.createElement("div");
+  el.className = "md";
+  el.innerHTML = html;
+  el.querySelectorAll("pre code").forEach((c) => { try { hljs.highlightElement(c); } catch (_) {} });
+  // Turn file references in inline code into links to the recorded files.
+  el.querySelectorAll(":not(pre) > code").forEach((c) => {
+    const t = c.textContent.trim();
+    let href = null;
+    if (/^artifacts\/[\w.-]+\.txt$/.test(t)) href = `${GH}transcript/${t}`;
+    else if (/^(checkout|tests)\/[\w.-]+\.py$/.test(t)) href = `${GH}project/${t}`;
+    else if (t === "tests/" || t === "tests") href = `${TREE}project/tests`;
+    else if (t === "LEARNING_LOG.md") href = `${GH}project/LEARNING_LOG.md`;
+    if (href && !c.closest("a")) {
+      const a = document.createElement("a");
+      a.href = href;
+      c.replaceWith(a);
+      a.appendChild(c);
+    }
+  });
+  return el;
+}
+
+async function fetchText(path) {
+  const r = await fetch(path, { cache: "no-cache" });
+  if (!r.ok) throw new Error(`${path}: HTTP ${r.status}`);
+  return r.text();
+}
+
+function buildLoop() {
+  const loop = document.getElementById("loop");
+  const rail = document.getElementById("rail");
+  for (const s of STEPS) {
+    const li = document.createElement("li");
+    if (s.checkpoint) li.classList.add("checkpoint");
+    li.innerHTML = `<span class="n">${s.n}${s.checkpoint ? " · ✋" : ""}</span><b>${s.name}</b>${s.desc}`;
+    loop.appendChild(li);
+    const r = document.createElement("li");
+    r.dataset.step = s.id;
+    if (s.checkpoint) r.classList.add("checkpoint");
+    r.textContent = `${s.n} · ${s.name}${s.checkpoint ? " ✋" : ""}`;
+    rail.appendChild(r);
+  }
+}
+
+async function buildTurns() {
+  const box = document.getElementById("turns");
+  const links = document.getElementById("turnlinks");
+  const texts = await Promise.all(TURNS.map((t) => fetchText(turnFile(t)).catch(() => null)));
+  box.innerHTML = "";
+  TURNS.forEach((t, i) => {
+    if (texts[i] == null) return;
+    const art = document.createElement("article");
+    art.className = `turn ${t.who}`;
+    art.id = `turn-${t.n}`;
+    art.dataset.steps = t.steps.join(" ");
+
+    const head = document.createElement("div");
+    head.className = "turn-head";
+    head.innerHTML = `<span class="who">Turn ${t.n} · ${t.who === "user" ? "學習者" : "Agent + skill"}</span>` +
+      t.steps.map((id) => {
+        const s = STEPS.find((x) => x.id === id);
+        return `<span class="chip${s.checkpoint ? " checkpoint" : ""}">${s.n} ${s.name}${s.checkpoint ? " ✋" : ""}</span>`;
+      }).join("") +
+      `<a class="raw" href="${GH}${turnFile(t)}">${turnFile(t).split("/")[1]}</a>`;
+    art.appendChild(head);
+
+    const note = document.createElement("p");
+    note.className = "note";
+    note.textContent = t.note;
+    art.appendChild(note);
+
+    const bubble = renderMarkdown(texts[i]);
+    bubble.classList.add("bubble");
+    art.appendChild(bubble);
+    box.appendChild(art);
+
+    if (t.who === "agent") {
+      requestAnimationFrame(() => {
+        if (bubble.scrollHeight > 760) {
+          bubble.classList.add("folded");
+          const btn = document.createElement("button");
+          btn.className = "unfold";
+          btn.textContent = "展開全文";
+          btn.onclick = () => { bubble.classList.remove("folded"); btn.remove(); };
+          bubble.after(btn);
+        }
+      });
+    }
+
+    const a = document.createElement("a");
+    a.href = `#turn-${t.n}`;
+    a.textContent = `T${t.n}`;
+    a.dataset.turn = t.n;
+    links.appendChild(a);
+  });
+  watchTurns();
+}
+
+function watchTurns() {
+  const railItems = [...document.querySelectorAll("#rail li")];
+  const links = [...document.querySelectorAll("#turnlinks a")];
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      const steps = e.target.dataset.steps.split(" ").filter(Boolean);
+      railItems.forEach((li) => li.classList.toggle("on", steps.includes(li.dataset.step)));
+      links.forEach((l) => l.classList.toggle("on", l.dataset.turn === e.target.id.split("-")[1]));
+    }
+  }, { rootMargin: "-35% 0px -60% 0px" });
+  document.querySelectorAll(".turn").forEach((t) => io.observe(t));
+}
+
+function colorTerm(text) {
+  const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  return text.split("\n").map((line) => {
+    const l = esc(line);
+    if (/\b(FAILED|AssertionError|assert 2 == 1|failed)\b/.test(line)) return `<span class="bad">${l}</span>`;
+    if (/\b(PASSED|passed)\b/.test(line)) return `<span class="good">${l}</span>`;
+    if (/^==> charges: [2-9]/.test(line)) return `<span class="bad">${l}</span>`;
+    if (/^==> charges: 1/.test(line)) return `<span class="good">${l}</span>`;
+    if (/^\s+\d+ms\s+[A-Z-]\s/.test(line)) return `<span class="hl">${l}</span>`;
+    return l;
+  }).join("\n");
+}
+
+async function buildEvidence() {
+  for (const [id, path] of [["art-before", "transcript/artifacts/04-repro-before-fix.txt"], ["art-after", "transcript/artifacts/04-tests-after-fix.txt"], ["art-check", "transcript/artifacts/06-check-answers-experiment.txt"]]) {
+    const el = document.getElementById(id);
+    try {
+      el.innerHTML = colorTerm(await fetchText(path));
+      const first = el.querySelector(".hl");
+      if (first) el.scrollTop = Math.max(0, first.offsetTop - el.offsetTop - 40);
+    } catch (e) { el.textContent = String(e); }
+  }
+  const d = document.getElementById("diff");
+  try {
+    const text = await fetchText("changes.diff");
+    d.innerHTML = "";
+    for (const line of text.split("\n")) {
+      const s = document.createElement("span");
+      if (line.startsWith("diff ") || line.startsWith("+++") || line.startsWith("---")) s.className = line.startsWith("diff ") ? "f" : "h";
+      else if (line.startsWith("@@")) s.className = "h";
+      else if (line.startsWith("+")) s.className = "a";
+      else if (line.startsWith("-")) s.className = "d";
+      s.textContent = line || " ";
+      d.appendChild(s);
+    }
+  } catch (e) { d.textContent = String(e); }
+
+  const log = document.getElementById("learning-log");
+  try {
+    const src = (await fetchText("project/LEARNING_LOG.md"))
+      .replace(/^(Task|Unknown types|Learned|Next time|Level):/gm, "\n**$1:**");
+    const md = renderMarkdown(src);
+    log.innerHTML = md.innerHTML;
+  } catch (e) { log.innerHTML = `<p>${String(e)}</p>`; }
+}
+
+document.querySelectorAll("button.copy").forEach((b) => b.addEventListener("click", async () => {
+  const text = document.getElementById(b.dataset.copy).textContent;
+  try { await navigator.clipboard.writeText(text); b.textContent = "已複製"; }
+  catch (_) { b.textContent = "請手動複製"; }
+  setTimeout(() => (b.textContent = "複製"), 1600);
+}));
+
+buildLoop();
+Promise.all([buildTurns(), buildEvidence()]).catch((e) => {
+  document.getElementById("turns").innerHTML =
+    `<p class="error">無法載入紀錄檔（${e.message}）。如果是直接用 file:// 開啟，請改用 <code>python3 -m http.server -d demo</code>。</p>`;
+});
+</script>
+</body>
+</html>

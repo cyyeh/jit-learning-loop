@@ -1,0 +1,13 @@
+{
+  "eval_id": 3,
+  "eval_name": "django-n-plus-one-level-2",
+  "prompt": "last week you helped me fix an N+1 in our django invoices page and I think I get it now. I think the orders list page has the same problem (evals/files/django-orders/). my plan: add select_related('customer') and prefetch_related('items') to the queryset in views.py. can you check my reasoning before I do it? trying to get to where I can do these on my own.",
+  "assertions": [
+    "Engages with the user's proposal first, stating what is correct about it and why",
+    "Explains or asks why select_related fits customer (forward FK) while prefetch_related fits items (reverse FK)",
+    "Surfaces the remaining N+1 on item.product (template touches item.product.name)",
+    "Uses a question or hint to lead the user to the product N+1 before (or instead of) giving the full answer",
+    "Suggests a way to verify query counts (e.g. assertNumQueries, django-debug-toolbar, connection.queries)",
+    "Does not edit views.py or hand over a rewritten file unprompted"
+  ]
+}

@@ -1,0 +1,61 @@
+
+      2ms  A  POST /orders/o-1/pay
+      9ms  A  get_order -> status=pending
+      9ms  A  charge_card: request sent to provider
+     53ms  B  POST /orders/o-1/pay
+    510ms  A  charge_card: CHARGED 4200 -> ch_1
+    512ms  A  mark_paid(ch_1)
+    515ms  A  <- 200 {'status': 'paid', 'receipt': 'ch_1'}
+    518ms  B  get_order -> status=paid
+    519ms  B  <- 200 {'status': 'already_paid'}
+==> charges: 1
+.
+      2ms  A  POST /orders/o-1/pay
+      5ms  A  get_order -> status=pending
+      7ms  A  charge_card: request sent to provider
+     53ms  B  POST /orders/o-1/pay
+     56ms  B  get_order -> status=pending
+    508ms  A  charge_card: CHARGED 4200 -> ch_1
+    511ms  A  mark_paid(ch_1)
+    513ms  A  <- 200 {'status': 'paid', 'receipt': 'ch_1'}
+    518ms  B  charge_card: request sent to provider
+   1018ms  B  charge_card: CHARGED 4200 -> ch_2
+   1020ms  B  mark_paid(ch_2)
+   1022ms  B  <- 200 {'status': 'paid', 'receipt': 'ch_2'}
+==> charges: 2
+.
+      2ms  A  POST /orders/o-1/pay
+      9ms  A  get_order -> status=pending
+      9ms  A  charge_card: request sent to provider
+     53ms  B  POST /orders/o-1/pay
+     54ms  B  <- 409 {'status': 'payment_in_progress'}
+    910ms  A  charge_card: CHARGED 4200 -> ch_1
+    912ms  A  mark_paid(ch_1)
+    914ms  A  LOG ERROR: pay lock for order o-1 expired before release (TTL 0.5s): possible double charge
+    914ms  A  <- 200 {'status': 'paid', 'receipt': 'ch_1'}
+    952ms  -  [probe] GET lock:pay:o-1 -> None
+   1003ms  C  POST /orders/o-1/pay
+   1006ms  C  get_order -> status=paid
+   1007ms  C  <- 200 {'status': 'already_paid'}
+==> charges: 1
+.
+      1ms  A  POST /orders/o-1/pay
+      6ms  A  get_order -> status=pending
+      6ms  A  charge_card: request sent to provider
+    601ms  B  POST /orders/o-1/pay
+    605ms  B  get_order -> status=pending
+    605ms  B  charge_card: request sent to provider
+    906ms  A  charge_card: CHARGED 4200 -> ch_1
+    908ms  A  mark_paid(ch_1)
+    909ms  A  LOG ERROR: pay lock for order o-1 expired before release (TTL 0.5s): possible double charge
+    910ms  A  <- 200 {'status': 'paid', 'receipt': 'ch_1'}
+    952ms  -  [probe] GET lock:pay:o-1 -> b'e46df6c0bc0a11f1990cbbbd0d2f7a20'
+   1002ms  C  POST /orders/o-1/pay
+   1003ms  C  <- 409 {'status': 'payment_in_progress'}
+   1506ms  B  charge_card: CHARGED 4200 -> ch_2
+   1508ms  B  mark_paid(ch_2)
+   1508ms  B  LOG ERROR: pay lock for order o-1 expired before release (TTL 0.5s): possible double charge
+   1509ms  B  <- 200 {'status': 'paid', 'receipt': 'ch_2'}
+==> charges: 2
+.
+4 passed in 4.07s
