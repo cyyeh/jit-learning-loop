@@ -1,0 +1,1 @@
+Our checkout endpoint occasionally double charges, usually when a user double-clicks Pay (the code is in `checkout/`). A coworker said "just put a redis lock around the outside." I've only ever used redis as a cache, and honestly I don't know what a redis lock actually means. Can you help me fix it? I want to really understand what I'm doing, not just paste in some code.

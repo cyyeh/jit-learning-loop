@@ -1,6 +1,8 @@
 # Just-in-time learning loop（原始方法論）
 
 > This is the source text the skill was distilled from. The skill (`skills/jit-learning-loop/`) is the operational version; this file is kept for provenance and for re-deriving the skill if it drifts.
+>
+> English translation: [`methodology.en.md`](methodology.en.md)
 
 ---
 

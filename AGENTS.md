@@ -4,7 +4,7 @@ This repo develops a single [Agent Skill](https://agentskills.io/specification):
 
 ## Source of truth
 
-- `docs/methodology.zh-TW.md` is the original essay. The skill is its operational distillation. When changing the skill's behavior, check it still agrees with the essay's core question: *which cognitive work does the user keep, so next time they need less help?*
+- `docs/methodology.zh-TW.md` is the original essay (`docs/methodology.en.md` is its English translation; if you change one, update the other). The skill is its operational distillation. When changing the skill's behavior, check it still agrees with the essay's core question: *which cognitive work does the user keep, so next time they need less help?*
 - `SKILL.md` must stay under ~500 lines. Put depth in `references/` and point to it from `SKILL.md`, saying when to read it.
 - Frontmatter allows only `name`, `description`, `license`, `allowed-tools`, `metadata` and `compatibility`. The description must be ≤1024 characters with no angle brackets.
 
