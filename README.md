@@ -1,6 +1,6 @@
 # jit-learning-loop
 
-A Claude Code skill for **learning what the task needs, while doing the task.**
+An [Agent Skill](https://agentskills.io) for **learning what the task needs, while doing the task.** It works with any coding agent that supports the [Agent Skills spec](https://agentskills.io/specification): Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, OpenCode and more.
 
 The usual agentic-coding loop is:
 
@@ -38,7 +38,7 @@ The question it keeps asking is: *which part of the cognitive work should you ke
 
 ### Any coding agent (via [`npx skills`](https://github.com/vercel-labs/skills))
 
-The skill follows the [Agent Skills spec](https://agentskills.io/specification), so it works in Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, OpenCode, Windsurf, Amp, Cline and [the other agents `skills` supports](https://github.com/vercel-labs/skills#supported-agents).
+This is the recommended install. It works in Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, OpenCode, Windsurf, Amp, Cline and [the other agents `skills` supports](https://github.com/vercel-labs/skills#supported-agents).
 
 ```bash
 # Current project, for the agents detected on this machine
@@ -53,7 +53,9 @@ npx skills add cyyeh/jit-learning-loop -a claude-code -a codex -a cursor
 
 Update later with `npx skills update jit-learning-loop`.
 
-### Claude Code plugin
+### Claude Code plugin (alternative)
+
+In Claude Code you can also install it as a plugin:
 
 ```text
 /plugin marketplace add cyyeh/jit-learning-loop
@@ -63,10 +65,11 @@ Update later with `npx skills update jit-learning-loop`.
 ### Local development (symlink)
 
 ```bash
-./scripts/install.sh
+./scripts/install.sh                   # Claude Code: ${CLAUDE_CONFIG_DIR:-~/.claude}/skills
+./scripts/install.sh <skills-dir>      # any other agent's skills directory
 ```
 
-This links `skills/jit-learning-loop` into `${CLAUDE_CONFIG_DIR:-~/.claude}/skills/`, so edits here take effect immediately. For other agents, `npx skills add ./ -a <agent>` installs from your local checkout.
+This links `skills/jit-learning-loop` into the skills directory, so edits here take effect immediately. To install a copy instead, `npx skills add ./ -a <agent>` installs from your local checkout.
 
 ## Use
 
@@ -90,7 +93,7 @@ skills/jit-learning-loop/    the skill (what `npx skills add` installs)
     fading.md                assistance levels, how to choose one, worked example
     learning-log.md          template, local vs. transferable, examples
   agents/openai.yaml         optional Codex / ChatGPT display metadata
-.claude-plugin/              Claude Code plugin + marketplace manifests
+.claude-plugin/              optional Claude Code plugin + marketplace manifests
 evals/
   evals.json                 test prompts + expectations for skill-creator runs
   files/                     fixtures: checkout race, k8s OOMKilled, Django N+1, Kafka duplicates
@@ -98,7 +101,7 @@ docs/
   methodology.zh-TW.md       the source essay this skill was distilled from
 scripts/
   validate.mjs               Agent Skills spec check (no dependencies; runs in CI)
-  install.sh                 dev symlink installer
+  install.sh                 dev symlink installer (any agent's skills directory)
 ```
 
 ## Developing the skill
@@ -108,7 +111,7 @@ node scripts/validate.mjs          # spec check: name, description length, YAML 
 npx skills add . --list            # confirm the skills CLI discovers it
 ```
 
-CI runs both on every push. See [CLAUDE.md](CLAUDE.md) for how to iterate with `skill-creator`: run the evals with and without the skill, review the outputs in the viewer, and revise.
+CI runs both on every push. See [AGENTS.md](AGENTS.md) for how to iterate with `skill-creator`: run the evals with and without the skill, review the outputs in the viewer, and revise.
 
 ## License
 
