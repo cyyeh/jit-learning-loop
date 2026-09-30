@@ -1,0 +1,19 @@
+$ .venv/bin/python -m pytest -v
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0 -- /home/user/jit-learning-loop/demo/add-login/project/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /home/user/jit-learning-loop/demo/add-login/project
+plugins: anyio-4.15.1
+collecting ... collected 3 items
+
+tests/test_notes.py::test_signup_rejects_duplicate_email PASSED          [ 33%]
+tests/test_notes.py::test_create_and_list_notes PASSED                   [ 66%]
+tests/test_notes.py::test_cannot_read_someone_elses_note PASSED          [100%]
+
+=============================== warnings summary ===============================
+.venv/lib/python3.11/site-packages/fastapi/testclient.py:1
+  /home/user/jit-learning-loop/demo/add-login/project/.venv/lib/python3.11/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+========================= 3 passed, 1 warning in 0.29s =========================

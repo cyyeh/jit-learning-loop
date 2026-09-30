@@ -1,0 +1,10 @@
+$ python q2_crack.py
+reset code (the attacker does not see this): 396291
+row in the leaked DB: sha256 = 917df4838016bd2f964f996ee7ad92cff398857709fd9512ff129ada7bca53b0
+
+SHA-256, try every 6-digit code: found 396291 after 396,292 guesses in 0.25 s (one CPU core, plain Python)
+
+session token: 32 random bytes = 2**256 = 1.16e+77 possible values
+at the same 1,559,114 guesses/s, expected time to hit one: 1.2e+63 years
+
+scrypt (repo params): 37 ms per guess -> all 10**6 codes: 10.3 hours on one core

@@ -231,6 +231,9 @@
   /* evidence */
   .stack { display: grid; gap: 18px; }
   .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  /* side-by-side cards share a height; the shorter log's terminal fills its card */
+  .grid-2 > .card { display: flex; flex-direction: column; }
+  .grid-2 > .card > pre { flex: 1; }
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
   .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
   .card-head b { font-size: 15px; }
@@ -513,8 +516,19 @@ const SCENARIOS = {
       { n: 5, who: "user",  steps: ["check"] },
       { n: 6, who: "agent", steps: ["check", "lessons"] },
     ],
-    stats: [["TODO", "stat.rounds"], ["TODO", "stat.misconceptions"], ["TODO", "stat.tests"], ["TODO", "stat.lessons"]],
-    evidence: [],
+    stats: [["3", "stat.rounds"], ["4", "stat.misconceptions"], ["11", "stat.tests"], ["3", "stat.lessons"]],
+    evidence: [
+      [{ path: "transcript/artifacts/04-jwt-vs-session.txt", key: "evidence.experiment" }],
+      [
+        { path: "transcript/artifacts/04-tests.txt", key: "evidence.tests", badge: ["pass", "11 passed"] },
+        { path: "transcript/artifacts/04-mutation-check.txt", key: "evidence.mutation", badge: ["pass", "4 / 4 caught"] },
+      ],
+      [
+        { path: "transcript/artifacts/04-two-workers.txt", key: "evidence.workers" },
+        { path: "transcript/artifacts/06-random-secret-2-workers.txt", key: "evidence.secret", badge: ["fail", "4 / 20 → 401"] },
+      ],
+      [{ path: "transcript/artifacts/06-crack-6-digit.txt", key: "evidence.crack", badge: ["fail", "0.25 s"] }],
+    ],
     codePaths: /^(notes|tests)\/[\w.-]+\.py$/,
     i18n: {
       zh: {
@@ -523,15 +537,34 @@ const SCENARIOS = {
         "pick.desc": "平常寫 React、從沒做過 auth，同事說「用 JWT 就好」。要在 mobile app 上線前做出真正的登入。",
         "hero.title": "做出新功能，也搞懂自己上線了什麼",
         "hero.lead": "這是一次完整錄下來的 session。一位平常寫 React 的工程師，第一次做 auth 就要替 notes API 加上登入，同事說「用 JWT 就好」。看 Agent 在把功能做出來的同時，怎麼讓他先預測、再用實驗對答案，最後看得懂自己上線的 code，也說得出為什麼這樣做。",
-        "stat.rounds": "TODO", "stat.misconceptions": "TODO", "stat.tests": "TODO", "stat.lessons": "TODO",
-        "evidence.title": "TODO",
-        "evidence.lead": "TODO",
-        "log.lead": "TODO",
-        "method.agent.title": "TODO", "method.agent.body": "TODO",
-        "method.user.title": "TODO", "method.user.body": "TODO",
-        "method.scenario.title": "TODO", "method.scenario.body": "TODO",
-        "method.rerun.body": "TODO",
-        "notes": [],
+        "stat.rounds": "輪對話就做好並驗證",
+        "stat.misconceptions": "個被實驗推翻的誤解",
+        "stat.tests": "個 test 全部通過",
+        "stat.lessons": "條 transferable lessons",
+        "evidence.title": "證據：實驗與驗證",
+        "evidence.lead": "Agent 跑過的每個指令輸出都存成檔案。最上面是 Turn 4 用來對照預測的實驗：同一個使用者分別用 JWT 和 session token 登入，再讀、改、撤銷那個 token。中間是做完之後的驗證：11 個 test，以及故意弄壞 4 個地方，看 test 抓不抓得到。接著是同一個部署下的對照：session token 在真的 2 個 uvicorn worker 之間都有效；換成 JWT、secret 在啟動時隨機產生，同樣 2 個 worker 就開始隨機回 401（Turn 6 的第 3 題）。最下面是 Turn 6 檢驗第 2 題的實驗。",
+        "evidence.experiment": "Turn 4：JWT vs. session token，用實驗對照預測",
+        "evidence.tests": "做完之後的 test",
+        "evidence.mutation": "故意弄壞 4 個地方",
+        "evidence.workers": "Session token：真的 2 個 uvicorn worker",
+        "evidence.secret": "Turn 6：JWT secret 隨機產生、2 個 worker",
+        "evidence.crack": "Turn 6：用 SHA-256 存的 6 位數碼能撐多久",
+        "log.lead": "Session 結束時，Agent 只保留能遷移到別的問題上的 lessons。「token 在 <code>current_user_id</code> 裡驗」這種 local knowledge 不算。三條 lessons 都來自學習者猜錯或只對一半的地方。這份 log 也是下次判斷該給多少協助（fading level）的依據。",
+        "method.agent.title": "Agent 那一方：真實輸出",
+        "method.agent.body": `用 Claude Code 的 subagent 載入 <code>skills/jit-learning-loop/SKILL.md</code>，在 <a href="${TREE}add-login/project">demo/add-login/project/</a> 這個真實的 FastAPI + SQLite 專案裡工作：讀 code、建 virtualenv、在 scratch 跑實驗、寫測試、跑測試、開真的 uvicorn worker、改 code。每一輪回覆原封不動存成 <code>transcript/NN-agent.md</code>，指令輸出存在 <code>transcript/artifacts/</code>。`,
+        "method.user.title": "使用者那一方：模擬的學習者",
+        "method.user.body": "使用者的回覆（<code>transcript/NN-user.md</code>）由 Claude 扮演一位「平常寫 React、第一次做後端 auth 的工程師」撰寫，而且刻意帶了常見的誤解（例如「JWT 是加密的」「logout 時 server 可以把 JWT 作廢」），用來展示預測被實驗推翻時，skill 如何修正 mental model。",
+        "method.scenario.title": "情境、程式碼與語言",
+        "method.scenario.body": "起始的程式碼是一個小型 notes API：web 前端直接在 <code>X-User-Id</code> header 帶 user id，是 prototype 留下的捷徑（<code>changes.diff</code> 是相對於它的完整改動）。這次是做新功能而不是修 bug，所以 loop 的第 3 步比較的是候選做法（JWT vs. session token），而不是 bug 的 hypotheses。Session 以繁體中文錄製；英文版是忠實翻譯（<code>transcript/en/</code>），code、指令和 terminal output 都沒有更動。",
+        "method.rerun.body": "<li><code>cd demo/add-login/project && uv venv && uv pip install -r requirements.txt</code></li><li><code>.venv/bin/python -m pytest tests</code></li><li>本機預覽這個頁面：<code>python3 -m http.server -d demo</code></li>",
+        "notes": [
+          "使用者說「不想上線一個自己都看不懂的 auth」，這就是 skill 的觸發訊號。同事的建議（JWT）只是其中一種做法。這次是做新功能而不是修 bug，所以 loop 的第 3 步會比較候選做法，而不是列 hypotheses。",
+          "還沒改任何 code。Agent 先在 repo 裡找出唯一決定「你是誰」的地方，列出已有與缺少的知識，並把 security 標成值得另外深入學的 fundamental。Minimum model 掛在使用者熟的前端經驗（Authorization: Bearer）上，並點出要修正的地方：Bearer 是信封，不是內容。接著把 JWT 和 session token 並排，表格最後一列故意留兩個問號，停下來請使用者預測。",
+          "預測裡帶著兩個很常見的誤解：「JWT 是用 secret 加密的，別人讀不到」，以及「logout 時 server 可以把 JWT 作廢，跟 session 差不多」。第 2 題（改內容會被簽章擋下）答對了。使用者也帶回關鍵的架構事實：沒有別的 service 要驗這個 token，並讓 Agent 依實驗結果直接做。",
+          "實驗推翻了兩個預測：JWT 的 payload 不用 secret 就讀得出來；logout 之後，偷來的 JWT 還能再用 3600 秒。Agent 先肯定使用者對的那一半（「logout 就該作廢 token」這個要求是對的），再指出卡在哪：stateless 的 server 沒有地方記「作廢」。接著依證據選 session token 而不是同事建議的 JWT，也說明什麼時候該回頭考慮 JWT。做完用 11 個 test、真的 2 個 uvicorn worker、以及故意弄壞 4 個地方來驗證，再用 invariants 解釋 diff，最後出 3 個測試 transfer 的問題。",
+          "一題答對（改密碼要刪掉該 user 的所有 session）、一題對一半（想到 6 位數會被線上暴力猜，沒想到 DB 外洩後離線把一百萬個碼全部 hash 一遍只要一瞬間）、一題大半答錯（以為 2 個 worker 共用同一個 module 裡的 secret）。使用者也主動說改密碼想下次自己做，等於自己要求 fading。",
+          "Agent 沒有只講對或錯，而是把第 2、3 題跑成實驗：用 SHA-256 存的 6 位數碼 0.25 秒就被試出來；每個 worker 各自隨機產生 secret，20 個 request 有 4 個莫名其妙回 401。它先講每題對的那一半，再指出類比斷在哪（讓 token 安全的是 entropy，不是 SHA-256），並用使用者熟的東西（同一個 React app 開兩個 tab）修正「worker 共用 module」的誤解。改密碼留給使用者下次自己做（level 2），只給一個帶著走的問題。最後寫下只含 transferable lessons 的 learning log。",
+        ],
       },
       en: {
         "pick.kind": "Build a feature",
@@ -539,15 +572,34 @@ const SCENARIOS = {
         "pick.desc": "A React developer who has never built auth is told “just use JWT” and has to ship real login before the mobile app launches.",
         "hero.title": "Build the feature. Understand what you shipped.",
         "hero.lead": "A complete recorded session. A React developer who has never built auth has to add login to a notes API, and a teammate says “just use JWT.” Watch the agent build the feature while the learner predicts first, checks each prediction against an experiment, and ends up understanding the code they ship and why it was built this way.",
-        "stat.rounds": "TODO", "stat.misconceptions": "TODO", "stat.tests": "TODO", "stat.lessons": "TODO",
-        "evidence.title": "TODO",
-        "evidence.lead": "TODO",
-        "log.lead": "TODO",
-        "method.agent.title": "TODO", "method.agent.body": "TODO",
-        "method.user.title": "TODO", "method.user.body": "TODO",
-        "method.scenario.title": "TODO", "method.scenario.body": "TODO",
-        "method.rerun.body": "TODO",
-        "notes": [],
+        "stat.rounds": "rounds of conversation to build and verify",
+        "stat.misconceptions": "misconceptions overturned by experiment",
+        "stat.tests": "tests passing",
+        "stat.lessons": "transferable lessons",
+        "evidence.title": "Evidence: experiments and checks",
+        "evidence.lead": "Every command the agent ran was saved to a file. Top: the turn 4 experiment that checks the predictions. The same user logs in with a JWT and with a session token, and each token is read, tampered with and revoked. Middle: checks after the build, with 11 tests and 4 deliberate breakages that each have to be caught by a test. Then the same deployment both ways: session tokens work across two real uvicorn workers, while a JWT whose secret is generated at startup gets random 401s from the same 2 workers (turn 6, question 3). Bottom: the turn 6 experiment that checks the answer to question 2.",
+        "evidence.experiment": "Turn 4: JWT vs. session token, the predictions tested",
+        "evidence.tests": "Tests after the build",
+        "evidence.mutation": "Breaking 4 things on purpose",
+        "evidence.workers": "Session token: two real uvicorn workers",
+        "evidence.secret": "Turn 6: random JWT secret, 2 workers",
+        "evidence.crack": "Turn 6: how long a 6-digit code stored as SHA-256 lasts",
+        "log.lead": "At the end, the agent keeps only lessons that transfer to other problems. Local knowledge like “tokens are checked in <code>current_user_id</code>” doesn't count. All three lessons come from places where the learner guessed wrong or was half right. The log also decides how much help to give next time (the fading level).",
+        "method.agent.title": "The agent: real output",
+        "method.agent.body": `A Claude Code subagent loaded <code>skills/jit-learning-loop/SKILL.md</code> and worked in <a href="${TREE}add-login/project">demo/add-login/project/</a>, a real FastAPI + SQLite project. It read code, created a virtualenv, ran experiments in scratch, wrote and ran tests, started real uvicorn workers, and changed code. Each reply was saved verbatim as <code>transcript/NN-agent.md</code>, and command output under <code>transcript/artifacts/</code>.`,
+        "method.user.title": "The user: a simulated learner",
+        "method.user.body": "The user turns (<code>transcript/NN-user.md</code>) were written by Claude playing “a React developer building backend auth for the first time”. They carry deliberate, common misconceptions (for example “a JWT is encrypted” and “the server can void a JWT at logout”) to show how the skill handles predictions that experiments overturn.",
+        "method.scenario.title": "Scenario, code and language",
+        "method.scenario.body": "The starting code is a small notes API whose web frontend sent the user's id in an <code>X-User-Id</code> header, a shortcut left over from the prototype (<code>changes.diff</code> is the full change against it). This is a feature to build, not a bug to fix, so step 3 of the loop compares candidate approaches (JWT vs. session token) instead of hypotheses about a bug. The session was recorded in Traditional Chinese. The English version is a faithful translation (<code>transcript/en/</code>); code, commands and terminal output are unchanged.",
+        "method.rerun.body": "<li><code>cd demo/add-login/project && uv venv && uv pip install -r requirements.txt</code></li><li><code>.venv/bin/python -m pytest tests</code></li><li>Preview this page locally: <code>python3 -m http.server -d demo</code></li>",
+        "notes": [
+          "The user says they don't want to ship auth they can't understand. That's the skill's trigger. The colleague's suggestion (JWT) is only one option. This is a new feature, not a bug, so step 3 of the loop will compare candidate approaches instead of listing hypotheses.",
+          "No code changed yet. The agent finds the one place in the repo that decides “who you are,” lists what the user has and what's missing, and flags security as a fundamental worth deeper study. The minimum model hangs on what the user knows from the frontend (Authorization: Bearer) and corrects one thing: Bearer is the envelope, not the contents. It then puts JWT and session tokens side by side, leaves two question marks in the table's last row on purpose, and stops for predictions.",
+          "The predictions carry two very common misconceptions: “a JWT is encrypted with the secret, so nobody can read it” and “at logout the server can void a JWT, just like a session.” Question 2 (the signature catches tampering) is right. The user also brings back the deciding architecture fact, that no other service verifies the token, and lets the agent build whichever approach the experiment favors.",
+          "The experiment overturns both misconceptions: the JWT payload is readable without the secret, and a stolen JWT keeps working for 3600 seconds after logout. The agent first credits the half the user got right (the requirement that logout should void the token is correct), then shows where it gets stuck: a stateless server has nowhere to record the void. It picks session tokens over the colleague's JWT on the evidence, and says when JWT would be the better call. It checks the build with 11 tests, two real uvicorn workers and 4 deliberate breakages, explains the diff through invariants, and asks 3 transfer questions.",
+          "One answer right (changing the password must delete all of that user's sessions), one half right (it sees that 6 digits can be brute-forced online, but not that after a DB leak, hashing all million codes offline takes an instant), and one mostly wrong (it assumes the 2 workers share the secret in one module). The user also volunteers to build change-password themselves next time, which amounts to asking the agent to fade.",
+          "Instead of just marking answers right or wrong, the agent turns questions 2 and 3 into experiments: a 6-digit code stored as SHA-256 falls in 0.25 seconds, and when each worker generates its own random secret, 4 of 20 requests get an unexplained 401. It credits the right half of each answer, shows where the analogy breaks (entropy keeps a token safe, not SHA-256), and repairs “the workers share the module” with something the learner knows: the same React app open in two tabs. Change-password is left for the learner to build next time (level 2), with one question to take along. It closes with a learning log of transferable lessons only.",
+        ],
       },
     },
   },
@@ -840,6 +892,10 @@ function colorTerm(text) {
     if (/^==> charges: [2-9]/.test(line)) return `<span class="bad">${l}</span>`;
     if (/^==> charges: 1/.test(line)) return `<span class="good">${l}</span>`;
     if (/^\s+\d+ms\s+[A-Z-]\s/.test(line)) return `<span class="hl">${l}</span>`;
+    // add-login: experiment sections, a stolen token that still works, a cracked code, refused requests
+    if (/^=== .+ ===$|^--- mutation:|^\s+\[\d \w+\]|secret fingerprint=/.test(line)) return `<span class="hl">${l}</span>`;
+    if (/thief .*-> 200|still valid|^SHA-256, try every .*: found/.test(line)) return `<span class="bad">${l}</span>`;
+    if (/-> 401\b/.test(line)) return `<span class="good">${l}</span>`;
     return l;
   }).join("\n");
 }

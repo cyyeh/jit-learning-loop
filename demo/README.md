@@ -31,7 +31,9 @@ Also here:
 
 ## add-login: build a feature you've never built
 
-ADD_LOGIN_SUMMARY
+The session starts from a small FastAPI + SQLite notes API whose web app sent the user's id in an `X-User-Id` header (`changes.diff` is the full change against it). Because this is a feature to build, step 3 of the loop compares candidate approaches (a JWT vs. an opaque session token stored in SQLite) instead of hypotheses about a bug. The simulated learner carries deliberate common misconceptions: that a JWT is encrypted, that the server can void a JWT at logout, that a 6-digit reset code stored as SHA-256 is safe because session tokens are stored that way, and that uvicorn workers share a module-level secret. Experiments overturned all four, and on the evidence the agent built session tokens rather than the JWT the teammate suggested. Recorded on 2026-09-30.
+
+The agent ran its experiments (JWT vs. session token, two real uvicorn workers, a random JWT secret, cracking a 6-digit code) in a scratch directory, so only their output is kept, in `transcript/artifacts/`.
 
 ## double-charge: fix a bug you don't understand yet
 

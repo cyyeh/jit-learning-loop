@@ -1,0 +1,15 @@
+# Real app (notes.app) as 2 uvicorn workers sharing one SQLite file, like prod.
+# A scratch-only middleware adds X-Worker-Pid so we can see which worker answered.
+$ ./smoke.sh
+# signup + login
+POST /signup  -> 201 pid=3331  {"id":1,"email":"alice@example.com"}
+POST /login   -> 200 pid=3331
+
+# 20 x GET /notes with that token, new connection each time
+     10 200 pid=3330
+     10 200 pid=3331
+
+# logout, then 20 x GET /notes with the same (copied) token
+POST /logout  -> 204 pid=3330  
+      4 401 pid=3330
+     16 401 pid=3331

@@ -1,0 +1,13 @@
+# Break one thing at a time in a scratch copy of the repo, run the suite, check a test catches it.
+--- mutation: logout does nothing (sessions.revoke -> pass)
+FAILED tests/test_auth.py::test_logout_kills_every_copy_of_the_token - Assert...
+1 failed, 10 passed in 1.31s
+--- mutation: expiry not checked (drop 'AND expires_at > ?')
+FAILED tests/test_auth.py::test_expired_session_is_rejected - AssertionError:...
+1 failed, 10 passed in 1.34s
+--- mutation: raw token stored (_hash returns the token)
+FAILED tests/test_auth.py::test_raw_token_is_never_stored - assert not True
+1 failed, 10 passed in 1.36s
+--- mutation: X-User-Id still accepted as a fallback
+FAILED tests/test_auth.py::test_x_user_id_header_is_no_longer_trusted - asser...
+1 failed, 10 passed in 1.33s

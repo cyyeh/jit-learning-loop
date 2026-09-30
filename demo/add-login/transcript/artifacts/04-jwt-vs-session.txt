@@ -1,0 +1,38 @@
+$ python exp_tokens.py   # scratch experiment, not in the repo
+fastapi 0.142.1, PyJWT 2.15.1
+
+=== A. JWT (HS256, exp = 1 hour) ===
+  alice's token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzkwNzMzMjg2fQ._eqmlH3VZJ3t2nOdR9EUil-Q_RKz1wecrw5Ev8tcl2w
+
+  [1 read] base64url-decode each part, no secret involved:
+    header : {"alg":"HS256","typ":"JWT"}
+    payload: {"sub":"1","exp":1790733286}
+    sig    : _eqmlH3VZJ3t2nOd... (32 bytes, HMAC-SHA256 of 'header.payload' with SECRET)
+
+  [2 tamper] sub 1 -> 2, keep the original signature:
+    GET /notes (original token)        -> 200 {"user_id":1}
+      (server log: InvalidSignatureError: Signature verification failed)
+    GET /notes (forged sub=2)          -> 401 {"detail":"invalid or expired token"}
+
+  [3 revoke] thief copies the token; alice logs out:
+    alice POST /logout                 -> 204 
+    thief GET /notes (copied token)    -> 200 {"user_id":1}
+    token still valid for another 3600 s (until exp)
+
+=== B. Session token in SQLite (expires_at = 1 hour) ===
+  alice's token: XTUbAMUyUffYJxJ4oBotKrEh-4w1sBH-DvOLKO_gC2A
+
+  [1 read] base64url-decode the token:
+    b"]5\x1b\x00\xc52Q\xf7\xd8'\x12x\xa0\x1a-*\xb1!\xfb\x8c5\xb0\x11\xfe\x0e\xf3\x8b(\xef\xe0\x0b`"
+    DB row   : ('e87f8c570ec528f8b6161d3daaa1be185326eb22f6bb6dcc36e1d1e19fee002a', 1, 1790733286)
+
+  [2 tamper] nothing inside to edit; try a different random token:
+    GET /notes (original token)        -> 200 {"user_id":1}
+      (server log: no matching session row)
+    GET /notes (guessed token)         -> 401 {"detail":"invalid or expired token"}
+
+  [3 revoke] thief copies the token; alice logs out:
+    alice POST /logout                 -> 204 
+      (server log: no matching session row)
+    thief GET /notes (copied token)    -> 401 {"detail":"invalid or expired token"}
+    rows left in sessions: 0

@@ -1,0 +1,1 @@
+下個月 mobile app 要上線，PM 說在那之前 notes API 一定要有真正的登入。現在 web 前端是直接在 `X-User-Id` header 帶 user id（prototype 時偷懶的，code 在 `notes/`）。做 mobile 的同事說「用 JWT 就好，大家都這樣做」。我本來是寫 React 的，JWT 只在前端看過 `Authorization: Bearer ...`，後端的 auth 從來沒做過。可以幫我把登入做出來嗎？這是 security 的東西，我不想上線一個自己都看不懂的 auth。
