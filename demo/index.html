@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>jit-learning-loop · Demo</title>
-<meta name="description" content="A recorded session: while fixing a checkout double-charge, the agent helps the learner build a mental model of race conditions and Redis locks. 一次真實錄製的 session：Agent 在修好 checkout double charge 的同時，幫學習者建立 race condition 與 Redis lock 的 mental model。">
+<meta name="description" content="Recorded jit-learning-loop sessions: an engineer builds login for an API without ever having built auth, and another fixes a double-charge bug with a Redis lock. The agent finishes the task while the learner builds a reusable mental model. 真實錄製的 jit-learning-loop session：第一次做 auth 就要替 API 加上登入，以及用 Redis lock 修 double charge。Agent 把 task 做完，學習者也留下可遷移的 mental model。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif:wght@600;900&family=Noto+Serif+TC:wght@600;900&display=swap" rel="stylesheet">
@@ -78,6 +78,7 @@
     font-family: var(--sans); font-size: 16px; line-height: 1.75;
     -webkit-font-smoothing: antialiased;
   }
+  [hidden] { display: none !important; }
   a { color: var(--accent); text-underline-offset: 3px; }
   code, pre, kbd { font-family: var(--mono); }
   .wrap { max-width: 1160px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
@@ -96,8 +97,28 @@
   }
   .lang button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
 
+  /* ---------- scenario picker ---------- */
+  .picker { padding-top: 28px; }
+  .pick-label { font: 600 12px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; }
+  .pick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .pick-grid button {
+    display: flex; flex-direction: column; gap: 6px; text-align: left; cursor: pointer;
+    font: inherit; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .pick-grid button:hover { border-color: var(--accent); }
+  .pick-grid button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .pick-grid button[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .pick-grid .kind { display: flex; align-items: center; gap: 8px; font: 600 12px/1 var(--mono); letter-spacing: .04em; color: var(--accent); }
+  .pick-grid .new { padding: 4px 6px; border-radius: 6px; background: var(--check-soft); color: var(--check); }
+  .pick-grid .viewing { margin-left: auto; color: var(--muted); font-weight: 400; }
+  .pick-grid button[aria-pressed="false"] .viewing { visibility: hidden; }
+  .pick-grid b { font-size: 17px; line-height: 1.4; }
+  .pick-grid .desc { color: var(--ink-2); font-size: 14.5px; line-height: 1.55; }
+
   /* ---------- hero ---------- */
-  header.hero { padding-top: 40px; padding-bottom: 40px; }
+  header.hero { padding-top: 36px; padding-bottom: 40px; }
   h1 {
     font-family: var(--serif); font-weight: 900; font-size: clamp(34px, 6vw, 60px); line-height: 1.15;
     letter-spacing: -.01em; margin: 0 0 18px; max-width: 16em;
@@ -157,10 +178,9 @@
   nav.rail .turnlinks a.on { background: var(--accent); border-color: var(--accent); color: var(--surface); }
 
   .translated {
-    display: none; margin: 0 0 22px; padding: 12px 16px; border-radius: 12px;
+    margin: 0 0 22px; padding: 12px 16px; border-radius: 12px;
     background: var(--accent-soft); color: var(--ink-2); font-size: 14.5px; line-height: 1.6;
   }
-  html[lang="en"] .translated { display: block; }
 
   .turn { margin-bottom: 34px; scroll-margin-top: 20px; }
   .turn-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 10px; }
@@ -209,9 +229,9 @@
   .md th { background: var(--surface-2); }
 
   /* evidence */
+  .stack { display: grid; gap: 18px; }
   .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
-  .card + .card, .grid-2 + .card { margin-top: 18px; }
   .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
   .card-head b { font-size: 15px; }
   .card-head a { font: 12px/1 var(--mono); color: var(--muted); }
@@ -251,7 +271,6 @@
 
   .method { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
   .method .card { padding: 18px 20px; }
-  .method .card + .card { margin-top: 0; }
   .method h3 { margin: 0 0 8px; font-size: 17px; }
   .method p, .method ul { margin: 0; color: var(--ink-2); font-size: 15px; }
   .method ul { padding-left: 1.2em; }
@@ -271,6 +290,7 @@
     header.hero { padding-top: 28px; }
     .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .loop { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .pick-grid { grid-template-columns: minmax(0, 1fr); }
     .kpis { grid-template-columns: minmax(0, 1fr); }
     .bubble { padding: 4px 16px; }
     .raw { margin-left: 0; width: 100%; }
@@ -287,16 +307,16 @@
   </div>
 </div>
 
+<nav class="picker wrap" aria-labelledby="pick-label">
+  <p class="pick-label" id="pick-label" data-i18n="pick.label"></p>
+  <div class="pick-grid" id="picker"></div>
+</nav>
+
 <header class="hero wrap">
   <h1 data-i18n="hero.title"></h1>
   <p class="lead" data-i18n="hero.lead"></p>
 
-  <div class="stats">
-    <div class="stat"><b>3</b><span data-i18n="stat.rounds"></span></div>
-    <div class="stat"><b>3</b><span data-i18n="stat.misconceptions"></span></div>
-    <div class="stat"><b>6</b><span data-i18n="stat.tests"></span></div>
-    <div class="stat"><b>3</b><span data-i18n="stat.lessons"></span></div>
-  </div>
+  <div class="stats" id="stats"></div>
 
   <div class="cta">
     <div class="install"><span class="prompt">$</span><code id="install-cmd">npx skills add cyyeh/jit-learning-loop</code><button class="copy" data-copy="install-cmd" data-i18n="copy"></button></div>
@@ -331,24 +351,7 @@
 <section class="wrap" id="evidence">
   <h2 data-i18n="evidence.title"></h2>
   <p class="section-lead" data-i18n="evidence.lead"></p>
-  <div class="grid-2">
-    <div class="card">
-      <div class="card-head"><b><span data-i18n="evidence.before"></span><span class="badge fail">1 failed</span></b><a data-i18n="raw" href="https://github.com/cyyeh/jit-learning-loop/blob/main/demo/transcript/artifacts/04-repro-before-fix.txt"></a></div>
-      <pre class="term" id="art-before"></pre>
-    </div>
-    <div class="card">
-      <div class="card-head"><b><span data-i18n="evidence.after"></span><span class="badge pass">6 passed</span></b><a data-i18n="raw" href="https://github.com/cyyeh/jit-learning-loop/blob/main/demo/transcript/artifacts/04-tests-after-fix.txt"></a></div>
-      <pre class="term" id="art-after"></pre>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-head"><b data-i18n="evidence.check"></b><a data-i18n="raw" href="https://github.com/cyyeh/jit-learning-loop/blob/main/demo/transcript/artifacts/06-check-answers-experiment.txt"></a></div>
-    <pre class="term" id="art-check"></pre>
-  </div>
-  <div class="card">
-    <div class="card-head"><b data-i18n="evidence.diff"></b><a href="https://github.com/cyyeh/jit-learning-loop/blob/main/demo/changes.diff">changes.diff</a></div>
-    <pre class="diff" id="diff"></pre>
-  </div>
+  <div class="stack" id="evidence-cards"></div>
 </section>
 
 <section class="wrap" id="log">
@@ -396,19 +399,16 @@
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.10.0/build/highlight.min.js"></script>
 <script>
-const GH = "https://github.com/cyyeh/jit-learning-loop/blob/main/demo/";
-const TREE = "https://github.com/cyyeh/jit-learning-loop/tree/main/demo/";
 const REPO = "https://github.com/cyyeh/jit-learning-loop";
+const GH = `${REPO}/blob/main/demo/`;
+const TREE = `${REPO}/tree/main/demo/`;
 
-// All page copy, in both languages. Values are trusted HTML written for this page.
+// Page copy shared by every scenario, in both languages. Values are trusted HTML written for this page.
+// A scenario's own copy (SCENARIOS[id].i18n) is looked up first.
 const I18N = {
   zh: {
-    "hero.title": "修好 bug，也帶走一個 mental model",
-    "hero.lead": "這是一次完整錄下來的 session。一位工程師第一次碰 Redis lock，要修 checkout 偶爾 double charge 的問題。看 Agent 在把 task 做完的同時，怎麼把一部分 cognitive work 留給使用者，讓他下次不再需要同樣程度的幫助。",
-    "stat.rounds": "輪對話就修好並驗證",
-    "stat.misconceptions": "個被實驗推翻的誤解",
-    "stat.tests": "個 test 全部通過",
-    "stat.lessons": "條 transferable lessons",
+    "pick.label": "選一個 demo",
+    "pick.viewing": "● 正在看",
     "copy": "複製", "copied": "已複製", "copy.fail": "請手動複製",
     "idea.title": "核心問題",
     "idea.quote": "「這次我要把哪一部分 cognitive work 留給自己，下次才不需要同樣程度的幫助？」",
@@ -423,15 +423,10 @@ const I18N = {
     "loading": "載入中…",
     "load.error": "無法載入紀錄檔（{msg}）。如果是直接用 file:// 開啟，請改用 <code>python3 -m http.server -d demo</code>。",
     "raw": "原始檔",
-    "evidence.title": "證據：實驗前後",
-    "evidence.lead": "Agent 跑過的每個指令輸出都存成檔案。左邊是修正前的重現測試：同一個 process、同一個 event loop，兩個 request 相隔 50ms 就扣了兩次卡。右邊是修正後的結果。下面是 Turn 6 用來檢驗學習者答案的實驗：把 <code>get_order</code> 移到 lock 外面、把 TTL 縮短，各會發生什麼事。",
-    "evidence.before": "修正前", "evidence.after": "修正後",
-    "evidence.check": "Turn 6：用實驗檢驗學習者的答案",
     "evidence.diff": "完整 diff（相對於原始 code）",
     "log.title": "留下來的東西：Learning log",
-    "log.lead": "Session 結束時，Agent 只保留能遷移到別的問題上的 lessons。「lock 放在哪個檔案」這種 local knowledge 不算。這份 log 也是下次判斷該給多少協助（fading level）的依據。",
     "compare.title": "對照：沒有這個 skill 的 Agent",
-    "compare.lead": "同樣的 4 個測試情境（Redis lock、k8s OOMKilled、Django N+1、Kafka 重複寄信），分別在有 skill 和沒有 skill 的情況下各跑一次，比較第一輪回覆。兩邊的技術品質都很高，差別在於誰在思考。",
+    "compare.lead": "4 個測試情境（Redis lock、k8s OOMKilled、Django N+1、Kafka 重複寄信），分別在有 skill 和沒有 skill 的情況下各跑一次，比較第一輪回覆。兩邊的技術品質都很高，差別在於誰在思考。",
     "compare.kpi.with": "有 skill：學習行為 assertions 通過率（27/27）",
     "compare.kpi.without": "沒有 skill：通過率（15/27）",
     "compare.kpi.correct": "技術正確性：兩邊都找到真正的 root cause",
@@ -443,14 +438,7 @@ const I18N = {
     "compare.row.correct": "找到真正的 root cause、提出正確修法",
     "compare.more": `完整的 benchmark、評分依據和 8 份原始回覆放在 <a href="${TREE}eval-iteration-1">demo/eval-iteration-1/</a>。`,
     "method.title": "這份紀錄怎麼產生的",
-    "method.agent.title": "Agent 那一方：真實輸出",
-    "method.agent.body": `用 Claude Code 的 subagent 載入 <code>skills/jit-learning-loop/SKILL.md</code>，在 <a href="${TREE}project">demo/project/</a> 這個真實的 Python 專案裡工作：讀 code、建 virtualenv、寫測試、跑測試、改 code。每一輪回覆原封不動存成 <code>transcript/NN-agent.md</code>，指令輸出存在 <code>transcript/artifacts/</code>。`,
-    "method.user.title": "使用者那一方：模擬的學習者",
-    "method.user.body": "使用者的回覆（<code>transcript/NN-user.md</code>）由 Claude 扮演一位「第一次碰 Redis lock 的後端工程師」撰寫，而且刻意帶了常見的誤解（例如「asyncio 是 single-thread，所以不會 race」），用來展示預測被實驗推翻時，skill 如何修正 mental model。",
-    "method.scenario.title": "情境、程式碼與語言",
-    "method.scenario.body": "checkout 服務的程式碼來自 repo 的 <code>evals/files/checkout/</code>：一個 FastAPI endpoint，先檢查 order 狀態、再呼叫 payment provider（300–900ms），最後才寫回 paid，是典型的 check-then-act race。Session 以繁體中文錄製；英文版是忠實翻譯（<code>transcript/en/</code>），code、指令和 terminal output 都沒有更動。",
     "method.rerun.title": "自己重跑",
-    "method.rerun.body": "<li><code>cd demo/project && uv venv && uv pip install -r requirements.txt</code></li><li><code>.venv/bin/python -m pytest tests</code></li><li>本機預覽這個頁面：<code>python3 -m http.server -d demo</code></li>",
     "footer": `<a href="${REPO}">cyyeh/jit-learning-loop</a> · Apache-2.0 · 方法論原文：<a href="${REPO}/blob/main/docs/methodology.zh-TW.md">繁體中文</a>／<a href="${REPO}/blob/main/docs/methodology.en.md">English</a>`,
     "steps": [
       ["校準", "判斷熟悉度與已知錨點"],
@@ -462,22 +450,10 @@ const I18N = {
       ["檢驗", "3 個測試 transfer 的問題"],
       ["Lessons", "1–3 條可遷移的 lessons"],
     ],
-    "notes": [
-      "使用者明確說「想真的搞懂」，這就是 skill 的觸發訊號。同事給的建議（Redis lock）只是其中一種解法，這點後面會被拿出來討論。",
-      "還沒改任何 code。先列出已有與缺少的知識並標註類型，然後給一張時間線，也點出「cache 的類比在哪裡斷掉」：cache 過期只是慢，lock 過期是扣兩次錢。最後提出 3 個 hypotheses，停下來請使用者預測。",
-      "預測裡帶著一個很常見的誤解：「asyncio 是 single-thread，所以同一個 process 裡不會 race」。使用者也帶回 prod 的證據（兩筆 charge 相差 180ms、第一個 request 回 200）。",
-      "整個 session 最有價值的一刻：實驗顯示 50ms 扣了兩次，而且就在同一個 event loop 裡。Agent 先肯定使用者對的那一半，再用「服務生顧很多桌」修正 mental model。接著全速實作並驗證，用 invariants 和 failure modes 解釋 diff，最後出 3 個測試 transfer 的問題。",
-      "一題答對、一題對一半（沒發現把 check 移到 lock 外面會讓 race 回來）、一題答錯（以為 release 會刪掉別人的 lock）。使用者也主動說 idempotency key 想下次自己加，等於自己要求 fading 到 level 2。",
-      "Agent 沒有只講對或錯，而是把第 2、3 題直接跑成實驗，拿 timeline 對照使用者的推理。第 2 題揭露「lock 保護的是決定，不是某個 function」；第 3 題證明 token 擋的正是使用者擔心的那件事。使用者想自己做的 Idempotency-Key，只給引導問題、不給答案（level 2）。最後寫下只含 transferable lessons 的 learning log。",
-    ],
   },
   en: {
-    "hero.title": "Fix the bug. Keep the mental model.",
-    "hero.lead": "A complete recorded session. An engineer who has never used a Redis lock has to fix a checkout that occasionally charges customers twice. Watch the agent finish the task while leaving part of the cognitive work to the learner, so next time they need less help.",
-    "stat.rounds": "rounds of conversation to fix and verify",
-    "stat.misconceptions": "misconceptions overturned by experiment",
-    "stat.tests": "tests passing",
-    "stat.lessons": "transferable lessons",
+    "pick.label": "Choose a demo",
+    "pick.viewing": "● Viewing",
     "copy": "Copy", "copied": "Copied", "copy.fail": "Copy manually",
     "idea.title": "The core question",
     "idea.quote": "“Which part of the cognitive work should I keep for myself this time, so I won't need the same level of help next time?”",
@@ -492,15 +468,10 @@ const I18N = {
     "loading": "Loading…",
     "load.error": "Couldn't load the transcript ({msg}). If you opened this file via file://, serve it instead: <code>python3 -m http.server -d demo</code>.",
     "raw": "raw file",
-    "evidence.title": "Evidence: before and after",
-    "evidence.lead": "Every command the agent ran was saved to a file. Left: the reproduction test before the fix. One process, one event loop, two requests 50ms apart, and the card is charged twice. Right: the same tests after the fix. Below: the experiment from turn 6 that checks the learner's answers, showing what happens when <code>get_order</code> moves outside the lock or the TTL gets shorter.",
-    "evidence.before": "Before the fix", "evidence.after": "After the fix",
-    "evidence.check": "Turn 6: checking the learner's answers by experiment",
     "evidence.diff": "Full diff against the original code",
     "log.title": "What stays behind: the learning log",
-    "log.lead": "At the end, the agent keeps only lessons that transfer to other problems. Local knowledge like “which file the lock lives in” doesn't count. The log also decides how much help to give next time (the fading level).",
     "compare.title": "Compared with an agent without the skill",
-    "compare.lead": "The same 4 scenarios (Redis lock, k8s OOMKilled, Django N+1, Kafka duplicate emails), each run once with the skill and once without, comparing the first reply. Both are technically strong. The difference is who does the thinking.",
+    "compare.lead": "4 test scenarios (Redis lock, k8s OOMKilled, Django N+1, Kafka duplicate emails), each run once with the skill and once without, comparing the first reply. Both are technically strong. The difference is who does the thinking.",
     "compare.kpi.with": "With the skill: learning-behavior checks passed (27/27)",
     "compare.kpi.without": "Without the skill (15/27)",
     "compare.kpi.correct": "Correctness: both found the real root cause",
@@ -512,14 +483,7 @@ const I18N = {
     "compare.row.correct": "Finds the real root cause and a correct fix",
     "compare.more": `The full benchmark, grading rationale and all 8 raw replies are in <a href="${TREE}eval-iteration-1">demo/eval-iteration-1/</a>. Each reply is in the language of its prompt.`,
     "method.title": "How this was recorded",
-    "method.agent.title": "The agent: real output",
-    "method.agent.body": `A Claude Code subagent loaded <code>skills/jit-learning-loop/SKILL.md</code> and worked in <a href="${TREE}project">demo/project/</a>, a real Python project. It read code, created a virtualenv, wrote and ran tests, and changed code. Each reply was saved verbatim as <code>transcript/NN-agent.md</code>, and command output under <code>transcript/artifacts/</code>.`,
-    "method.user.title": "The user: a simulated learner",
-    "method.user.body": "The user turns (<code>transcript/NN-user.md</code>) were written by Claude playing “a backend engineer new to Redis locks”. They carry deliberate, common misconceptions (for example “asyncio is single-threaded, so there's no race”) to show how the skill handles a prediction that the experiment overturns.",
-    "method.scenario.title": "Scenario, code and language",
-    "method.scenario.body": "The checkout code comes from the repo's <code>evals/files/checkout/</code>: a FastAPI endpoint that checks the order status, calls a payment provider (300–900ms), and only then marks the order paid, a textbook check-then-act race. The session was recorded in Traditional Chinese. The English version is a faithful translation (<code>transcript/en/</code>); code, commands and terminal output are unchanged.",
     "method.rerun.title": "Run it yourself",
-    "method.rerun.body": "<li><code>cd demo/project && uv venv && uv pip install -r requirements.txt</code></li><li><code>.venv/bin/python -m pytest tests</code></li><li>Preview this page locally: <code>python3 -m http.server -d demo</code></li>",
     "footer": `<a href="${REPO}">cyyeh/jit-learning-loop</a> · Apache-2.0 · The methodology essay: <a href="${REPO}/blob/main/docs/methodology.en.md">English</a> / <a href="${REPO}/blob/main/docs/methodology.zh-TW.md">Traditional Chinese original</a>`,
     "steps": [
       ["Calibrate", "Gauge familiarity and known anchors"],
@@ -531,34 +495,166 @@ const I18N = {
       ["Check", "3 questions that test transfer"],
       ["Lessons", "1–3 transferable lessons"],
     ],
-    "notes": [
-      "The user says they want to actually understand. That's the skill's trigger. The colleague's suggestion (a Redis lock) is only one possible fix, and that comes up later.",
-      "No code changed yet. The agent lists what the user has and what's missing, tagged by type. It draws a timeline and points out where the cache analogy breaks: an expired cache entry is just slow, an expired lock charges twice. It ends with 3 hypotheses and stops to ask for a prediction.",
-      "The prediction carries a very common misconception: “asyncio is single-threaded, so there's no race inside one process.” The user also brings back production evidence: two charges 180ms apart, and the first request returned 200.",
-      "The most valuable moment of the session: the experiment shows two charges at 50ms, inside a single event loop. The agent first credits the half the user got right, then repairs the mental model with an analogy of a waiter serving many tables. Then it implements and verifies at full speed, explains the diff through invariants and failure modes, and asks 3 transfer questions.",
-      "One answer right, one half right (it misses that moving the check outside the lock brings the race back), and one wrong (it assumes release would delete someone else's lock). The user also volunteers to add the idempotency key themselves next time, which amounts to asking for level 2.",
-      "Instead of just marking answers right or wrong, the agent turns questions 2 and 3 into experiments and compares the timelines with the user's reasoning. Question 2 shows that a lock protects a decision, not a function. Question 3 shows the token prevents exactly what the user feared. For the idempotency key the user wants to add alone, the agent gives guiding questions, not answers (level 2). It closes with a learning log of transferable lessons only.",
-    ],
   },
 };
 
+// Each recorded session lives in its own folder under demo/. The first entry is the default.
+// `original` is the language it was recorded in; translations sit in transcript/<lang>/
+// and project/LEARNING_LOG.<lang>.md.
+const SCENARIOS = {
+  "add-login": {
+    dir: "add-login/",
+    original: "zh",
+    turns: [
+      { n: 1, who: "user",  steps: [] },
+      { n: 2, who: "agent", steps: ["calibrate", "gap", "model", "predict"] },
+      { n: 3, who: "user",  steps: ["predict"] },
+      { n: 4, who: "agent", steps: ["implement", "diff", "check"] },
+      { n: 5, who: "user",  steps: ["check"] },
+      { n: 6, who: "agent", steps: ["check", "lessons"] },
+    ],
+    stats: [["TODO", "stat.rounds"], ["TODO", "stat.misconceptions"], ["TODO", "stat.tests"], ["TODO", "stat.lessons"]],
+    evidence: [],
+    codePaths: /^(notes|tests)\/[\w.-]+\.py$/,
+    i18n: {
+      zh: {
+        "pick.kind": "做新功能",
+        "pick.title": "替 API 加上登入",
+        "pick.desc": "平常寫 React、從沒做過 auth，同事說「用 JWT 就好」。要在 mobile app 上線前做出真正的登入。",
+        "hero.title": "做出新功能，也搞懂自己上線了什麼",
+        "hero.lead": "這是一次完整錄下來的 session。一位平常寫 React 的工程師，第一次做 auth 就要替 notes API 加上登入，同事說「用 JWT 就好」。看 Agent 在把功能做出來的同時，怎麼讓他先預測、再用實驗對答案，最後看得懂自己上線的 code，也說得出為什麼這樣做。",
+        "stat.rounds": "TODO", "stat.misconceptions": "TODO", "stat.tests": "TODO", "stat.lessons": "TODO",
+        "evidence.title": "TODO",
+        "evidence.lead": "TODO",
+        "log.lead": "TODO",
+        "method.agent.title": "TODO", "method.agent.body": "TODO",
+        "method.user.title": "TODO", "method.user.body": "TODO",
+        "method.scenario.title": "TODO", "method.scenario.body": "TODO",
+        "method.rerun.body": "TODO",
+        "notes": [],
+      },
+      en: {
+        "pick.kind": "Build a feature",
+        "pick.title": "Add login to an API",
+        "pick.desc": "A React developer who has never built auth is told “just use JWT” and has to ship real login before the mobile app launches.",
+        "hero.title": "Build the feature. Understand what you shipped.",
+        "hero.lead": "A complete recorded session. A React developer who has never built auth has to add login to a notes API, and a teammate says “just use JWT.” Watch the agent build the feature while the learner predicts first, checks each prediction against an experiment, and ends up understanding the code they ship and why it was built this way.",
+        "stat.rounds": "TODO", "stat.misconceptions": "TODO", "stat.tests": "TODO", "stat.lessons": "TODO",
+        "evidence.title": "TODO",
+        "evidence.lead": "TODO",
+        "log.lead": "TODO",
+        "method.agent.title": "TODO", "method.agent.body": "TODO",
+        "method.user.title": "TODO", "method.user.body": "TODO",
+        "method.scenario.title": "TODO", "method.scenario.body": "TODO",
+        "method.rerun.body": "TODO",
+        "notes": [],
+      },
+    },
+  },
+
+  "double-charge": {
+    dir: "double-charge/",
+    original: "zh",
+    turns: [
+      { n: 1, who: "user",  steps: [] },
+      { n: 2, who: "agent", steps: ["calibrate", "gap", "model", "predict"] },
+      { n: 3, who: "user",  steps: ["predict"] },
+      { n: 4, who: "agent", steps: ["implement", "diff", "check"] },
+      { n: 5, who: "user",  steps: ["check"] },
+      { n: 6, who: "agent", steps: ["check", "lessons"] },
+    ],
+    stats: [["3", "stat.rounds"], ["3", "stat.misconceptions"], ["6", "stat.tests"], ["3", "stat.lessons"]],
+    // Rows of evidence cards; a row with two cards shows them side by side.
+    evidence: [
+      [
+        { path: "transcript/artifacts/04-repro-before-fix.txt", key: "evidence.before", badge: ["fail", "1 failed"] },
+        { path: "transcript/artifacts/04-tests-after-fix.txt", key: "evidence.after", badge: ["pass", "6 passed"] },
+      ],
+      [{ path: "transcript/artifacts/06-check-answers-experiment.txt", key: "evidence.check" }],
+    ],
+    codePaths: /^(checkout|tests)\/[\w.-]+\.py$/,
+    i18n: {
+      zh: {
+        "pick.kind": "修 bug",
+        "pick.title": "Checkout 偶爾 double charge",
+        "pick.desc": "第一次碰 Redis lock，要修使用者連點 Pay 就扣兩次錢的 race condition。",
+        "hero.title": "修好 bug，也帶走一個 mental model",
+        "hero.lead": "這是一次完整錄下來的 session。一位工程師第一次碰 Redis lock，要修 checkout 偶爾 double charge 的問題。看 Agent 在把 task 做完的同時，怎麼把一部分 cognitive work 留給使用者，讓他下次不再需要同樣程度的幫助。",
+        "stat.rounds": "輪對話就修好並驗證",
+        "stat.misconceptions": "個被實驗推翻的誤解",
+        "stat.tests": "個 test 全部通過",
+        "stat.lessons": "條 transferable lessons",
+        "evidence.title": "證據：實驗前後",
+        "evidence.lead": "Agent 跑過的每個指令輸出都存成檔案。左邊是修正前的重現測試：同一個 process、同一個 event loop，兩個 request 相隔 50ms 就扣了兩次卡。右邊是修正後的結果。下面是 Turn 6 用來檢驗學習者答案的實驗：把 <code>get_order</code> 移到 lock 外面、把 TTL 縮短，各會發生什麼事。",
+        "evidence.before": "修正前", "evidence.after": "修正後",
+        "evidence.check": "Turn 6：用實驗檢驗學習者的答案",
+        "log.lead": "Session 結束時，Agent 只保留能遷移到別的問題上的 lessons。「lock 放在哪個檔案」這種 local knowledge 不算。這份 log 也是下次判斷該給多少協助（fading level）的依據。",
+        "method.agent.title": "Agent 那一方：真實輸出",
+        "method.agent.body": `用 Claude Code 的 subagent 載入 <code>skills/jit-learning-loop/SKILL.md</code>，在 <a href="${TREE}double-charge/project">demo/double-charge/project/</a> 這個真實的 Python 專案裡工作：讀 code、建 virtualenv、寫測試、跑測試、改 code。每一輪回覆原封不動存成 <code>transcript/NN-agent.md</code>，指令輸出存在 <code>transcript/artifacts/</code>。`,
+        "method.user.title": "使用者那一方：模擬的學習者",
+        "method.user.body": "使用者的回覆（<code>transcript/NN-user.md</code>）由 Claude 扮演一位「第一次碰 Redis lock 的後端工程師」撰寫，而且刻意帶了常見的誤解（例如「asyncio 是 single-thread，所以不會 race」），用來展示預測被實驗推翻時，skill 如何修正 mental model。",
+        "method.scenario.title": "情境、程式碼與語言",
+        "method.scenario.body": "checkout 服務的程式碼來自 repo 的 <code>evals/files/checkout/</code>：一個 FastAPI endpoint，先檢查 order 狀態、再呼叫 payment provider（300–900ms），最後才寫回 paid，是典型的 check-then-act race。Session 以繁體中文錄製；英文版是忠實翻譯（<code>transcript/en/</code>），code、指令和 terminal output 都沒有更動。",
+        "method.rerun.body": "<li><code>cd demo/double-charge/project && uv venv && uv pip install -r requirements.txt</code></li><li><code>.venv/bin/python -m pytest tests</code></li><li>本機預覽這個頁面：<code>python3 -m http.server -d demo</code></li>",
+        "notes": [
+          "使用者明確說「想真的搞懂」，這就是 skill 的觸發訊號。同事給的建議（Redis lock）只是其中一種解法，這點後面會被拿出來討論。",
+          "還沒改任何 code。先列出已有與缺少的知識並標註類型，然後給一張時間線，也點出「cache 的類比在哪裡斷掉」：cache 過期只是慢，lock 過期是扣兩次錢。最後提出 3 個 hypotheses，停下來請使用者預測。",
+          "預測裡帶著一個很常見的誤解：「asyncio 是 single-thread，所以同一個 process 裡不會 race」。使用者也帶回 prod 的證據（兩筆 charge 相差 180ms、第一個 request 回 200）。",
+          "整個 session 最有價值的一刻：實驗顯示 50ms 扣了兩次，而且就在同一個 event loop 裡。Agent 先肯定使用者對的那一半，再用「服務生顧很多桌」修正 mental model。接著全速實作並驗證，用 invariants 和 failure modes 解釋 diff，最後出 3 個測試 transfer 的問題。",
+          "一題答對、一題對一半（沒發現把 check 移到 lock 外面會讓 race 回來）、一題答錯（以為 release 會刪掉別人的 lock）。使用者也主動說 idempotency key 想下次自己加，等於自己要求 fading 到 level 2。",
+          "Agent 沒有只講對或錯，而是把第 2、3 題直接跑成實驗，拿 timeline 對照使用者的推理。第 2 題揭露「lock 保護的是決定，不是某個 function」；第 3 題證明 token 擋的正是使用者擔心的那件事。使用者想自己做的 Idempotency-Key，只給引導問題、不給答案（level 2）。最後寫下只含 transferable lessons 的 learning log。",
+        ],
+      },
+      en: {
+        "pick.kind": "Fix a bug",
+        "pick.title": "Checkout occasionally charges twice",
+        "pick.desc": "New to Redis locks, an engineer fixes the race that double-charges a customer who double-clicks Pay.",
+        "hero.title": "Fix the bug. Keep the mental model.",
+        "hero.lead": "A complete recorded session. An engineer who has never used a Redis lock has to fix a checkout that occasionally charges customers twice. Watch the agent finish the task while leaving part of the cognitive work to the learner, so next time they need less help.",
+        "stat.rounds": "rounds of conversation to fix and verify",
+        "stat.misconceptions": "misconceptions overturned by experiment",
+        "stat.tests": "tests passing",
+        "stat.lessons": "transferable lessons",
+        "evidence.title": "Evidence: before and after",
+        "evidence.lead": "Every command the agent ran was saved to a file. Left: the reproduction test before the fix. One process, one event loop, two requests 50ms apart, and the card is charged twice. Right: the same tests after the fix. Below: the experiment from turn 6 that checks the learner's answers, showing what happens when <code>get_order</code> moves outside the lock or the TTL gets shorter.",
+        "evidence.before": "Before the fix", "evidence.after": "After the fix",
+        "evidence.check": "Turn 6: checking the learner's answers by experiment",
+        "log.lead": "At the end, the agent keeps only lessons that transfer to other problems. Local knowledge like “which file the lock lives in” doesn't count. The log also decides how much help to give next time (the fading level).",
+        "method.agent.title": "The agent: real output",
+        "method.agent.body": `A Claude Code subagent loaded <code>skills/jit-learning-loop/SKILL.md</code> and worked in <a href="${TREE}double-charge/project">demo/double-charge/project/</a>, a real Python project. It read code, created a virtualenv, wrote and ran tests, and changed code. Each reply was saved verbatim as <code>transcript/NN-agent.md</code>, and command output under <code>transcript/artifacts/</code>.`,
+        "method.user.title": "The user: a simulated learner",
+        "method.user.body": "The user turns (<code>transcript/NN-user.md</code>) were written by Claude playing “a backend engineer new to Redis locks”. They carry deliberate, common misconceptions (for example “asyncio is single-threaded, so there's no race”) to show how the skill handles a prediction that the experiment overturns.",
+        "method.scenario.title": "Scenario, code and language",
+        "method.scenario.body": "The checkout code comes from the repo's <code>evals/files/checkout/</code>: a FastAPI endpoint that checks the order status, calls a payment provider (300–900ms), and only then marks the order paid, a textbook check-then-act race. The session was recorded in Traditional Chinese. The English version is a faithful translation (<code>transcript/en/</code>); code, commands and terminal output are unchanged.",
+        "method.rerun.body": "<li><code>cd demo/double-charge/project && uv venv && uv pip install -r requirements.txt</code></li><li><code>.venv/bin/python -m pytest tests</code></li><li>Preview this page locally: <code>python3 -m http.server -d demo</code></li>",
+        "notes": [
+          "The user says they want to actually understand. That's the skill's trigger. The colleague's suggestion (a Redis lock) is only one possible fix, and that comes up later.",
+          "No code changed yet. The agent lists what the user has and what's missing, tagged by type. It draws a timeline and points out where the cache analogy breaks: an expired cache entry is just slow, an expired lock charges twice. It ends with 3 hypotheses and stops to ask for a prediction.",
+          "The prediction carries a very common misconception: “asyncio is single-threaded, so there's no race inside one process.” The user also brings back production evidence: two charges 180ms apart, and the first request returned 200.",
+          "The most valuable moment of the session: the experiment shows two charges at 50ms, inside a single event loop. The agent first credits the half the user got right, then repairs the mental model with an analogy of a waiter serving many tables. Then it implements and verifies at full speed, explains the diff through invariants and failure modes, and asks 3 transfer questions.",
+          "One answer right, one half right (it misses that moving the check outside the lock brings the race back), and one wrong (it assumes release would delete someone else's lock). The user also volunteers to add the idempotency key themselves next time, which amounts to asking for level 2.",
+          "Instead of just marking answers right or wrong, the agent turns questions 2 and 3 into experiments and compares the timelines with the user's reasoning. Question 2 shows that a lock protects a decision, not a function. Question 3 shows the token prevents exactly what the user feared. For the idempotency key the user wants to add alone, the agent gives guiding questions, not answers (level 2). It closes with a learning log of transferable lessons only.",
+        ],
+      },
+    },
+  },
+};
+const SCENARIO_IDS = Object.keys(SCENARIOS);
+
 const STEP_IDS = ["calibrate", "gap", "model", "predict", "implement", "diff", "check", "lessons"];
 const CHECKPOINTS = new Set(["predict", "check"]);
-const TURNS = [
-  { n: 1, who: "user",  steps: [] },
-  { n: 2, who: "agent", steps: ["calibrate", "gap", "model", "predict"] },
-  { n: 3, who: "user",  steps: ["predict"] },
-  { n: 4, who: "agent", steps: ["implement", "diff", "check"] },
-  { n: 5, who: "user",  steps: ["check"] },
-  { n: 6, who: "agent", steps: ["check", "lessons"] },
-];
 
 let lang = "zh";
+let scenario = SCENARIO_IDS[0];
 let observer = null;
-const t = (key) => I18N[lang][key];
+let renderId = 0;
+const sc = () => SCENARIOS[scenario];
+const t = (key) => sc().i18n[lang][key] ?? I18N[lang][key];
 const pad = (n) => String(n).padStart(2, "0");
 const turnName = (turn) => `${pad(turn.n)}-${turn.who}.md`;
-const turnPath = (turn, l = lang) => l === "en" ? `transcript/en/${turnName(turn)}` : `transcript/${turnName(turn)}`;
+const transcriptDir = (l = lang) => l === sc().original ? "transcript/" : `transcript/${l}/`;
+const turnPath = (turn, l = lang) => `${sc().dir}${transcriptDir(l)}${turnName(turn)}`;
+const logPath = (l = lang) => `${sc().dir}project/LEARNING_LOG${l === sc().original ? "" : `.${l}`}.md`;
 const stepLabel = (id) => {
   const i = STEP_IDS.indexOf(id);
   return `${i} ${t("steps")[i][0]}${CHECKPOINTS.has(id) ? " ✋" : ""}`;
@@ -574,9 +670,16 @@ function pickLanguage() {
   return /^zh\b/i.test(navigator.language || "") ? "zh" : "en";
 }
 
+// The scenario comes only from the URL, so a fresh visit always opens the default one.
+function pickScenario() {
+  const q = new URLSearchParams(location.search).get("demo");
+  return q && Object.hasOwn(SCENARIOS, q) ? q : SCENARIO_IDS[0];
+}
+
 marked.setOptions({ gfm: true, breaks: false });
 
 function renderMarkdown(src) {
+  const { dir, codePaths } = sc();
   const el = document.createElement("div");
   el.className = "md";
   el.innerHTML = DOMPurify.sanitize(marked.parse(src));
@@ -585,10 +688,10 @@ function renderMarkdown(src) {
   el.querySelectorAll(":not(pre) > code").forEach((c) => {
     const s = c.textContent.trim();
     let href = null;
-    if (/^artifacts\/[\w.-]+\.txt$/.test(s)) href = `${GH}transcript/${s}`;
-    else if (/^(checkout|tests)\/[\w.-]+\.py$/.test(s)) href = `${GH}project/${s}`;
-    else if (s === "tests/" || s === "tests") href = `${TREE}project/tests`;
-    else if (s === "LEARNING_LOG.md") href = `${GH}project/LEARNING_LOG.md`;
+    if (/^artifacts\/[\w.-]+\.txt$/.test(s)) href = `${GH}${dir}transcript/${s}`;
+    else if (codePaths.test(s)) href = `${GH}${dir}project/${s}`;
+    else if (s === "tests/" || s === "tests") href = `${TREE}${dir}project/tests`;
+    else if (s === "LEARNING_LOG.md") href = `${GH}${dir}project/LEARNING_LOG.md`;
     if (href && !c.closest("a")) {
       const a = document.createElement("a");
       a.href = href;
@@ -609,6 +712,24 @@ function applyStaticText() {
   document.documentElement.lang = lang === "en" ? "en" : "zh-Hant-TW";
   document.querySelectorAll("[data-i18n]").forEach((el) => { el.innerHTML = t(el.dataset.i18n); });
   document.querySelectorAll(".lang button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
+  document.querySelector(".translated").hidden = lang === sc().original;
+
+  const picker = document.getElementById("picker");
+  picker.innerHTML = "";
+  SCENARIO_IDS.forEach((id) => {
+    const copy = SCENARIOS[id].i18n[lang];
+    const b = document.createElement("button");
+    b.type = "button";
+    b.dataset.demo = id;
+    b.setAttribute("aria-pressed", String(id === scenario));
+    b.innerHTML = `<span class="kind">${copy["pick.kind"]}<span class="viewing">${t("pick.viewing")}</span></span>` +
+      `<b>${copy["pick.title"]}</b><span class="desc">${copy["pick.desc"]}</span>`;
+    b.addEventListener("click", () => selectScenario(id));
+    picker.appendChild(b);
+  });
+
+  document.getElementById("stats").innerHTML = sc().stats
+    .map(([value, key]) => `<div class="stat"><b>${value}</b><span>${t(key)}</span></div>`).join("");
 
   const loop = document.getElementById("loop");
   const rail = document.getElementById("rail");
@@ -629,22 +750,24 @@ function applyStaticText() {
   });
 }
 
-async function buildTurns() {
+async function buildTurns(isCurrent) {
+  const { turns, original } = sc();
   const box = document.getElementById("turns");
   const links = document.getElementById("turnlinks");
   box.innerHTML = `<p class="note" data-label="${t("note.label")}">${t("loading")}</p>`;
   links.innerHTML = "";
-  const texts = await Promise.all(TURNS.map((turn) => fetchText(turnPath(turn))));
+  const texts = await Promise.all(turns.map((turn) => fetchText(turnPath(turn))));
+  if (!isCurrent()) return;
   box.innerHTML = "";
-  TURNS.forEach((turn, i) => {
+  turns.forEach((turn, i) => {
     const art = document.createElement("article");
     art.className = `turn ${turn.who}`;
     art.id = `turn-${turn.n}`;
     art.dataset.steps = turn.steps.join(" ");
 
-    const raw = lang === "en"
-      ? `<a href="${GH}${turnPath(turn, "en")}">en/${turnName(turn)}</a> · <a href="${GH}${turnPath(turn, "zh")}">original</a>`
-      : `<a href="${GH}${turnPath(turn, "zh")}">${turnName(turn)}</a>`;
+    const raw = lang === original
+      ? `<a href="${GH}${turnPath(turn)}">${turnName(turn)}</a>`
+      : `<a href="${GH}${turnPath(turn)}">${lang}/${turnName(turn)}</a> · <a href="${GH}${turnPath(turn, original)}">original</a>`;
     const head = document.createElement("div");
     head.className = "turn-head";
     head.innerHTML = `<span class="who">Turn ${turn.n} · ${t(turn.who === "user" ? "who.user" : "who.agent")}</span>` +
@@ -700,11 +823,11 @@ function watchTurns() {
   document.querySelectorAll(".turn").forEach((el) => observer.observe(el));
 }
 
-async function buildLearningLog() {
+async function buildLearningLog(isCurrent) {
   const log = document.getElementById("learning-log");
-  const path = lang === "en" ? "project/LEARNING_LOG.en.md" : "project/LEARNING_LOG.md";
   // Give each log field its own paragraph so a numbered list doesn't swallow "Next time:".
-  const src = (await fetchText(path)).replace(/^(Task|Unknown types|Learned|Next time|Level):/gm, "\n**$1:**");
+  const src = (await fetchText(logPath())).replace(/^(Task|Unknown types|Learned|Next time|Level):/gm, "\n**$1:**");
+  if (!isCurrent()) return;
   log.innerHTML = renderMarkdown(src).innerHTML;
 }
 
@@ -721,25 +844,38 @@ function colorTerm(text) {
   }).join("\n");
 }
 
-// Terminal output and the diff are the same in both languages, so they load once.
-async function buildEvidence() {
-  const arts = [
-    ["art-before", "transcript/artifacts/04-repro-before-fix.txt"],
-    ["art-after", "transcript/artifacts/04-tests-after-fix.txt"],
-    ["art-check", "transcript/artifacts/06-check-answers-experiment.txt"],
-  ];
-  for (const [id, path] of arts) {
-    const el = document.getElementById(id);
-    try {
-      el.innerHTML = colorTerm(await fetchText(path));
-      const first = el.querySelector(".hl");
-      if (first) el.scrollTop = Math.max(0, first.offsetTop - el.offsetTop - 40);
-    } catch (e) { el.textContent = String(e); }
+function evidenceCard(title, href, linkText, pre) {
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `<div class="card-head"><b>${title}</b><a href="${href}">${linkText}</a></div>`;
+  card.appendChild(pre);
+  return card;
+}
+
+// Terminal output and the diff are the same in both languages; only the card titles are translated.
+async function buildEvidence(isCurrent) {
+  const { dir, evidence } = sc();
+  const box = document.getElementById("evidence-cards");
+  box.innerHTML = "";
+  const loads = [];
+  for (const row of evidence) {
+    const parent = row.length > 1 ? box.appendChild(Object.assign(document.createElement("div"), { className: "grid-2" })) : box;
+    for (const art of row) {
+      const pre = Object.assign(document.createElement("pre"), { className: "term" });
+      const badge = art.badge ? `<span class="badge ${art.badge[0]}">${art.badge[1]}</span>` : "";
+      parent.appendChild(evidenceCard(`<span>${t(art.key)}</span>${badge}`, `${GH}${dir}${art.path}`, t("raw"), pre));
+      loads.push(fetchText(dir + art.path).then((text) => {
+        if (!isCurrent()) return;
+        pre.innerHTML = colorTerm(text);
+        const first = pre.querySelector(".hl");
+        if (first) pre.scrollTop = Math.max(0, first.offsetTop - pre.offsetTop - 40);
+      }).catch((e) => { pre.textContent = String(e); }));
+    }
   }
-  const d = document.getElementById("diff");
-  try {
-    const text = await fetchText("changes.diff");
-    d.innerHTML = "";
+  const diff = Object.assign(document.createElement("pre"), { className: "diff" });
+  box.appendChild(evidenceCard(t("evidence.diff"), `${GH}${dir}changes.diff`, "changes.diff", diff));
+  loads.push(fetchText(`${dir}changes.diff`).then((text) => {
+    if (!isCurrent()) return;
     for (const line of text.split("\n")) {
       const s = document.createElement("span");
       if (line.startsWith("diff ")) s.className = "f";
@@ -747,27 +883,43 @@ async function buildEvidence() {
       else if (line.startsWith("+")) s.className = "a";
       else if (line.startsWith("-")) s.className = "d";
       s.textContent = line || " ";
-      d.appendChild(s);
+      diff.appendChild(s);
     }
-  } catch (e) { d.textContent = String(e); }
+  }).catch((e) => { diff.textContent = String(e); }));
+  await Promise.all(loads);
 }
 
 async function render() {
+  const id = ++renderId;
+  const isCurrent = () => id === renderId;
   applyStaticText();
+  buildEvidence(isCurrent);
   try {
-    await Promise.all([buildTurns(), buildLearningLog()]);
+    await Promise.all([buildTurns(isCurrent), buildLearningLog(isCurrent)]);
   } catch (e) {
-    document.getElementById("turns").innerHTML = `<p class="error">${t("load.error").replace("{msg}", e.message)}</p>`;
+    if (isCurrent()) document.getElementById("turns").innerHTML = `<p class="error">${t("load.error").replace("{msg}", e.message)}</p>`;
   }
+}
+
+function setParam(name, value) {
+  const url = new URL(location.href);
+  url.searchParams.set(name, value);
+  url.hash = "";
+  history.replaceState(null, "", url);
+}
+
+function selectScenario(id) {
+  if (id === scenario) return;
+  scenario = id;
+  setParam("demo", id);
+  render();
 }
 
 document.querySelectorAll(".lang button").forEach((b) => b.addEventListener("click", () => {
   if (b.dataset.lang === lang) return;
   lang = b.dataset.lang;
   try { localStorage.setItem("jit-demo-lang", lang); } catch (_) {}
-  const url = new URL(location.href);
-  url.searchParams.set("lang", lang);
-  history.replaceState(null, "", url);
+  setParam("lang", lang);
   render();
 }));
 
@@ -788,8 +940,8 @@ document.addEventListener("click", (e) => {
 });
 
 lang = pickLanguage();
+scenario = pickScenario();
 render();
-buildEvidence();
 </script>
 </body>
 </html>
