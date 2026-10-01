@@ -1,5 +1,7 @@
 # jit-learning-loop
 
+[![Skill Grader: A](https://seoagent.com/skill-grader/badge/cyyeh/jit-learning-loop.svg)](https://seoagent.com/skill-grader/cyyeh/jit-learning-loop)
+
 An [Agent Skill](https://agentskills.io) for **learning what the task needs, while doing the task.** It works with any coding agent that supports the [Agent Skills spec](https://agentskills.io/specification): Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, OpenCode and more.
 
 The usual agentic-coding loop is:
