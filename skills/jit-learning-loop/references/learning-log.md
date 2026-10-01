@@ -1,6 +1,6 @@
 # Learning log
 
-Read this when writing the step-7 entry, or when setting up a log for the first time.
+Read this when writing the step-7 entry, setting up a log for the first time, or when the helper script's behavior needs explaining.
 
 The log should be *short*. A long note is written once and never read again. A three-line entry gets reread the next time the topic comes up, and that is also when you (the agent) use it to calibrate the assistance level.
 
@@ -72,9 +72,9 @@ Append new entries at the top so the most recent is read first. Don't reorganize
 
 Step 0, what does the log already say about this topic?
 
-```text
-node <skill folder>/scripts/learning-log.mjs list --log LEARNING_LOG.md              every topic and its level
-node <skill folder>/scripts/learning-log.mjs find --log LEARNING_LOG.md redis lock   matching entries, best first, and its level
+```bash
+node <skill-dir>/scripts/learning-log.mjs list --log LEARNING_LOG.md              # every topic and its level
+node <skill-dir>/scripts/learning-log.mjs find --log LEARNING_LOG.md redis lock   # matching entries, best first, suggested level
 ```
 
 `find` matches any of the words, so pass a few (`redis lock race`). English words match at word starts ("lock" finds "locking", not "blocking"); other scripts match anywhere. It can't judge relevance or translate: if nothing matches, `list` the topics and decide yourself whether one is related.
@@ -91,8 +91,8 @@ Next time: read about fencing tokens before the next lock.
 Level: 1, try 2
 ```
 
-```text
-node <skill folder>/scripts/learning-log.mjs add --log LEARNING_LOG.md --topic "Redis locking" --file <entry file>
+```bash
+node <skill-dir>/scripts/learning-log.mjs add --log LEARNING_LOG.md --topic "Redis locking" --file <entry-file>
 ```
 
 Use `--file` rather than `echo` or a shell string, because the shell would run any backticks in the lessons. (The entry can also come on stdin through a quoted heredoc, `<<'EOF'`.) `add` creates the log if it's missing and inserts the entry above the newest one without changing anything else in the file. It refuses an entry with no `Task:`, no `Learned:`, zero or more than three numbered lessons, no level of 1–3, a `##` line inside it, or an identical copy already in the log. Only dated `## YYYY-MM-DD · ...` headings count as entries, so a `## How to use this log` section or a fenced template in the header is left alone. If some entries lack their own dated heading, `list` and `find` say so and `add` refuses to guess where "newest first" goes; give those entries headings first. Keep the field names (`Task:`, `Learned:`, `Level:`) in English even when the lessons are in another language, so the script and the next agent can read them.

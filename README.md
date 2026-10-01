@@ -92,6 +92,7 @@ skills/jit-learning-loop/    the skill (what `npx skills add` installs)
   SKILL.md                   loaded when triggered
   references/                loaded on demand
     unknown-types.md         signals, strategies and traps for each unknown type; fundamentals list
+    after-the-checkpoint.md  steps 4-7 in full, read once the user answers the first checkpoint
     fading.md                assistance levels, how to choose one, worked example
     learning-log.md          template, local vs. transferable, examples
   scripts/learning-log.mjs   optional helper: look up past entries, add a checked entry (Node, no deps)

@@ -134,7 +134,7 @@ const HEADLESS_NOTE = (log) =>
 
 function loadForReading(log) {
   if (!existsSync(log)) {
-    console.log(`No learning log at ${log}.`);
+    console.log(`No learning log at ${log}. Treat the topic as new (level 1) unless the user says otherwise.`);
     return null;
   }
   return parseLog(readLog(log).text);
@@ -168,12 +168,14 @@ function find(opts) {
     .sort((a, b) => b.score - a.score || b.date.localeCompare(a.date) || a.index - b.index);
 
   if (!matches.length) {
-    console.log(`No entries in ${opts.log} mention: ${opts.terms.join(", ")}. Run "list" and judge whether any topic is related.`);
+    console.log(`No entries in ${opts.log} mention: ${opts.terms.join(", ")}. Run "list" and judge whether any topic is related; if none is, start at level 1.`);
   } else {
     const shown = matches.slice(0, opts.limit);
     console.log(shown.map((e) => e.text).join("\n\n"));
     if (matches.length > shown.length) console.log(`\n(${matches.length - shown.length} more; raise --limit to see them)`);
     console.log(`\nBest match: ${label(matches[0])}, ${levelSummary(matches[0])}.`);
+    const best = matches[0];
+    if (best.level) console.log(`Suggested starting level: ${best.next ?? best.level} (a level the user asks for, or a plan they bring, still wins).`);
     const newest = [...matches].sort((a, b) => b.date.localeCompare(a.date) || a.index - b.index)[0];
     if (newest !== matches[0]) console.log(`Most recent match: ${label(newest)}, ${levelSummary(newest)}.`);
   }

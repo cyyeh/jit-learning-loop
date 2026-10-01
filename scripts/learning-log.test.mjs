@@ -91,6 +91,7 @@ Level: 3
   assert.match(r.stdout, /^## 2026-03-01 · Redis locking/);
   assert.doesNotMatch(r.stdout, /Kafka/, '"lock" must not match "blocking" or "clock"');
   assert.match(r.stdout, /Best match: 2026-03-01 · Redis locking, level 3\./);
+  assert.match(r.stdout, /Suggested starting level: 3 /);
 
   const zh = run(["find", "--log", join(demo("double-charge"), "LEARNING_LOG.md"), "租約"]);
   assert.match(zh.stdout, /Best match: 2026-09-29/);
@@ -98,6 +99,7 @@ Level: 3
   const none = run(["find", "--log", log, "kubernetes"]);
   assert.equal(none.status, 0);
   assert.match(none.stdout, /No entries .* mention: kubernetes\. Run "list"/);
+  assert.match(none.stdout, /start at level 1/);
 });
 
 test("a missing log is reported, not an error", () => {
