@@ -73,7 +73,7 @@ Then stop and ask the user to commit to something:
 - **Evidence already in front of them** (a pasted stack trace or `kubectl describe`): ask them to read it. "Look at `Last State` in what you pasted. Which hypothesis does it support, and which does it rule out?"
 - **Level 2 or 3:** ask them to propose the approach and their reasoning before you offer yours.
 
-End your turn there; don't run the experiment in the same message. A prediction only teaches if it's made before the answer is visible, and a wrong prediction is the most informative moment of the task. So don't leak the answer either: if it can be read straight off your model, diagram or hypotheses, ask about the step they'd still have to reason through. If the user says "skip" or is clearly in a hurry, carry on: the checkpoint is an offer, not a gate.
+End your turn there; don't run the experiment in the same message. A prediction only teaches if it's made before the answer is visible, and a wrong prediction is the most informative moment of the task. So don't leak the answer either: your model, diagram and hypotheses should leave it open, not presuppose it. When the answer sits in evidence they pasted, reading it is the exercise. If the user says "skip" or is clearly in a hurry, carry on: the checkpoint is an offer, not a gate.
 
 ### 4. Investigate and implement
 
