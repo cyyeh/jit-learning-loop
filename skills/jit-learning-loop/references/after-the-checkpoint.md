@@ -35,7 +35,7 @@ git stash pop
 
 Never pop a stash you didn't just create. If `pop` reports a conflict, stop and tell the user (the stash is kept). With no git, or the user's own edits in those files: copy the fixed files aside, undo the fix, run the test, then copy them back. Report both results.
 
-A test that catches the original bug can still miss the next one. Break each invariant from step 5 once (move the check outside the lock, drop the expiry) and confirm some test fails. One that passes is a gap: add a test, or name it to the user as a known hole.
+A test that catches the original bug can still miss the next one. Break each invariant from step 5 once, including the plausible wrong fixes a teammate might try (an in-process lock instead of a shared one, the check moved outside the lock, the lock around only the side effect), and confirm some test fails each time. A break that every test survives is a missing test: add it before you hand over.
 
 ## 5. Explain the diff
 
