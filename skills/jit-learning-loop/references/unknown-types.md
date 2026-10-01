@@ -49,9 +49,11 @@ Most tasks contain more than one type. Tag each gap separately. Codebase and API
    ```bash
    npm ls kafkajs
    .venv/bin/python -m pip show kafka-python
-   go list -m -json github.com/segmentio/kafka-go
-   cargo tree -i rdkafka
+   GOTOOLCHAIN=local go list -m -json github.com/segmentio/kafka-go
+   cargo tree --offline -i rdkafka
    ```
+
+   (On Windows the virtualenv's Python is `.venv\Scripts\python`. `GOTOOLCHAIN=local` and `--offline` stop Go and Cargo from downloading anything.)
 2. Read the docs or source for *that* version. The printed source path is usually the code that runs; the `via` line says which environment it came from. SDKs move fast, and answering from memory produces confident code for an API that no longer exists.
 3. Give a minimal runnable example, then adapt it to the task.
 

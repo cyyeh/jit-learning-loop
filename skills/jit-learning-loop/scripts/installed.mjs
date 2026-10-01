@@ -21,7 +21,7 @@
 // if present. It never imports the package itself or runs project code.
 import { readFileSync, existsSync, readdirSync, statSync, lstatSync } from "node:fs";
 import { join, dirname, resolve, basename } from "node:path";
-import { homedir, tmpdir } from "node:os";
+import { homedir } from "node:os";
 import { spawnSync } from "node:child_process";
 
 const USAGE = "usage: installed.mjs PACKAGE [--in DIR] [--lang node|python|go|rust]";
@@ -60,7 +60,8 @@ function parseArgs(argv) {
 }
 
 // DIR and its parents, up to and including the repository root, never $HOME
-// or above (so a stray ~/venv or /tmp/.venv can't stand in for the project's).
+// or above (so a stray ~/venv can't stand in for the project's). Outside a
+// git repo the walk can reach further up; results always name their path.
 function* upward(dir) {
   for (let d = dir, first = true; ; d = dirname(d), first = false) {
     if (!first && (d === HOME || dirname(d) === d)) return;
@@ -106,7 +107,7 @@ function findNode(pkg, dir) {
     if (version) return [{ name: pkg, status: "declared", version, via: join(d, "package-lock.json") }];
     for (const other of ["yarn.lock", "pnpm-lock.yaml"]) {
       const path = join(d, other);
-      if (existsSync(path) && readFileSync(path, "utf8").includes(pkg)) {
+      if (existsSync(path) && new RegExp(`(^|[\\s"'/])${escapeRe(pkg)}@`, "m").test(readFileSync(path, "utf8"))) {
         return [{ name: pkg, status: "named", via: path }];
       }
     }
@@ -118,7 +119,6 @@ function findNode(pkg, dir) {
 
 const PY_MARKERS = ["pyproject.toml", "setup.py", "setup.cfg", "Pipfile", "requirements.txt", "requirements", ".venv", "venv"];
 const looksLikePython = (dir) =>
-  Boolean(process.env.VIRTUAL_ENV || process.env.CONDA_PREFIX) ||
   [...upward(dir)].some((d) => PY_MARKERS.some((m) => existsSync(join(d, m))) || listDir(d).some((f) => /^requirements.*\.txt$/.test(f)));
 
 const venvPython = (prefix) =>
@@ -130,20 +130,20 @@ const venvPython = (prefix) =>
     }
   });
 
-// The interpreter that runs the project: an active env, else a virtualenv in
-// the project, else the system one. A project env that's broken is reported,
-// not silently replaced by the system Python.
+// The interpreter that runs the project: its own virtualenv, else an
+// activated env (not conda's auto-activated base), else the system one. A
+// project env that's broken is reported, not silently replaced.
 function pythonInterpreter(dir) {
-  for (const [label, prefix] of [["VIRTUAL_ENV", process.env.VIRTUAL_ENV], ["CONDA_PREFIX", process.env.CONDA_PREFIX]]) {
-    if (prefix) return { path: venvPython(prefix) ?? join(prefix, "bin/python"), label: `$${label} (${prefix})`, project: true };
-  }
+  const active = process.env.VIRTUAL_ENV || (process.env.CONDA_DEFAULT_ENV !== "base" && process.env.CONDA_PREFIX) || "";
   for (const d of upward(dir)) {
     for (const name of [".venv", "venv", "env"]) {
       const prefix = join(d, name);
       if (!existsSync(join(prefix, "pyvenv.cfg"))) continue;
-      return { path: venvPython(prefix) ?? join(prefix, "bin/python"), label: prefix, project: true };
+      const other = active && resolve(active) !== prefix ? `the active env ${active} isn't this project's; checked the project's` : undefined;
+      return { path: venvPython(prefix) ?? join(prefix, "bin/python"), label: prefix, project: true, note: other };
     }
   }
+  if (active) return { path: venvPython(active) ?? join(active, "bin/python"), label: `the active env ${active}`, project: true };
   return { path: "python3", fallback: "python", label: "system python3, no project virtualenv found", project: false };
 }
 
@@ -189,10 +189,12 @@ if src is None and prefer and "." not in prefer[0]:
 print("@@INSTALLED@@" + json.dumps({"name": name, "version": dist.version, "source": src or str(dist.locate_file(""))}))
 `;
 
-function probePython(python, pkg) {
+// Runs from the project folder so pyenv/asdf/mise shims pick the project's
+// Python version; the probe drops that folder from sys.path before importing.
+function probePython(python, pkg, dir) {
   const r = spawnSync(python, ["-B", "-c", PY_PROBE, pkg], {
     encoding: "utf8",
-    cwd: tmpdir(),
+    cwd: dir,
     timeout: 15000,
     env: { ...process.env, PYTHONDONTWRITEBYTECODE: "1" },
   });
@@ -223,8 +225,11 @@ function findPython(pkg, dir, explicit) {
   if (!explicit && !looksLikePython(dir)) return [];
   const pins = pythonPins(pkg, dir);
   const interp = pythonInterpreter(dir);
-  let probe = probePython(interp.path, pkg);
-  if (probe.error === "not found" && interp.fallback) probe = probePython(interp.fallback, pkg);
+  let probe = probePython(interp.path, pkg, dir);
+  if (probe.error === "not found" && interp.fallback) {
+    probe = probePython(interp.fallback, pkg, dir);
+    interp.label = "system python, no project virtualenv found";
+  }
   const results = [];
   if (probe.error && interp.project) {
     results.push({ status: "broken", name: pkg, via: interp.label, note: `its Python couldn't run (${probe.error}); not falling back to the system Python` });
@@ -236,7 +241,7 @@ function findPython(pkg, dir, explicit) {
       version: probe.info.version,
       source: probe.info.source,
       via: interp.label,
-      note: pinned ? `but ${pinned.via} pins ${pinned.version}: check which one their deployment runs` : undefined,
+      note: [pinned && `but ${pinned.via} pins ${pinned.version}: check which one their deployment runs`, interp.note].filter(Boolean).join("; ") || undefined,
     });
   }
   if (!results.some((r) => r.status === "installed")) {
@@ -290,7 +295,7 @@ function findGo(pkg, dir) {
     if (!existsSync(mod)) continue;
     const req = goModule(pkg, mod);
     if (!req) return [];
-    // Ask Go itself (it knows replace, vendoring and workspaces), offline and
+    // Ask Go itself (it knows replace and workspaces), offline and
     // without letting it fetch a newer toolchain.
     const r = spawnSync("go", ["list", "-m", "-json", req.path], {
       encoding: "utf8",
@@ -303,30 +308,34 @@ function findGo(pkg, dir) {
     if (info?.Path) {
       const rep = info.Replace;
       const target = rep ?? info;
+      const vendored = join(d, "vendor", info.Path);
+      const source = target.Dir ?? (existsSync(vendored) ? vendored : undefined);
       return [{
-        name: info.Path,
-        status: target.Dir ? "installed" : "declared",
-        version: target.Version ?? info.Version ?? "(local)",
-        source: target.Dir,
-        via: "go list -m",
-        note: rep ? `replaced by ${rep.Path}${rep.Version ? ` ${rep.Version}` : ""}: that's the code that builds` : undefined,
+        name: rep ? `${rep.Path} (replaces ${info.Path})` : info.Path,
+        status: source ? "installed" : "declared",
+        version: target.Version ?? "(local)",
+        source,
+        via: `${mod}, per go list -m`,
+        note: rep ? "the replacement is the code that builds" : undefined,
       }];
     }
     // No Go (or it couldn't answer offline): read go.mod.
     const rep = req.replace;
     if (rep?.path.startsWith(".") || rep?.path.startsWith("/")) {
-      return [{ name: req.path, status: "installed", version: "(local)", source: resolve(d, rep.path), via: mod, note: `replaced by the local folder ${rep.path}: that's the code that builds` }];
+      return [{ name: `${rep.path} (replaces ${req.path})`, status: "installed", version: "(local)", source: resolve(d, rep.path), via: mod, note: "the local folder is the code that builds" }];
     }
     const target = rep ? { path: rep.path, version: rep.version ?? req.version } : req;
     const cache = process.env.GOMODCACHE || join(process.env.GOPATH || join(HOME, "go"), "pkg", "mod");
     const source = join(cache, `${target.path.replace(/[A-Z]/g, (c) => `!${c.toLowerCase()}`)}@${target.version}`);
+    const vendored = join(d, "vendor", req.path);
+    const onDisk = existsSync(source) ? source : existsSync(vendored) ? vendored : undefined;
     return [{
-      name: req.path,
-      status: existsSync(source) ? "installed" : "declared",
+      name: rep ? `${rep.path} (replaces ${req.path})` : req.path,
+      status: onDisk ? "installed" : "declared",
       version: target.version,
-      source: existsSync(source) ? source : undefined,
+      source: onDisk,
       via: mod,
-      note: rep ? `replaced by ${rep.path} ${target.version}: that's the code that builds` : undefined,
+      note: rep ? "the replacement is the code that builds" : undefined,
     }];
   }
   return [];
@@ -354,9 +363,10 @@ function findRust(pkg, dir) {
     // Direct dependencies of the workspace's own crates (the ones without a source).
     const direct = new Set(packages.filter((p) => !p.source).flatMap((p) => p.deps));
     const registry = join(process.env.CARGO_HOME || join(HOME, ".cargo"), "registry", "src");
+    const isDirectDep = (p) => direct.has(p.name) || direct.has(`${p.name} ${p.version}`) || [...direct].some((dep) => dep.startsWith(`${p.name} ${p.version} `));
+    hits.sort((a, b) => isDirectDep(b) - isDirectDep(a));
     return hits.map((p) => {
-      const isDirect = direct.has(p.name) || direct.has(`${p.name} ${p.version}`) || [...direct].some((dep) => dep.startsWith(`${p.name} ${p.version} `));
-      const note = hits.length > 1 ? (isDirect ? "a direct dependency of this workspace" : "pulled in by another crate") : undefined;
+      const note = hits.length > 1 ? (isDirectDep(p) ? "a direct dependency of this workspace" : "pulled in by another crate") : undefined;
       if (!p.source) return { name: p.name, status: "installed", version: p.version, source: "a local path crate in this workspace", via: lock, note };
       if (p.source.startsWith("git+")) return { name: p.name, status: "declared", version: p.version, via: lock, note: [`from ${p.source.replace(/#.*$/, "")}`, note].filter(Boolean).join("; ") };
       const source = listDir(registry).map((index) => join(registry, index, `${p.name}-${p.version}`)).find(existsSync);

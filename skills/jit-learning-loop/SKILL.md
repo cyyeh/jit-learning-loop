@@ -39,7 +39,7 @@ node <skill-dir>/scripts/learning-log.mjs find --log LEARNING_LOG.md redis lock
 
 ### 1. Map the gap before any code
 
-In a few lines: **Have** (anchors it builds on) and **Missing** (new concepts, tagged by type).
+In a few lines: **Have** (anchors it builds on) and **Missing** (each new concept, tagged by type).
 
 | Type | Strategy |
 |---|---|

@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, symlinkSync, chmodSync, readdirSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, symlinkSync, chmodSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -51,6 +51,10 @@ test("node: installed package (scoped too) from a parent folder, else package-lo
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /^node: express 4\.19\.2 installed \(via node_modules\)\n  source: .*node_modules[\\/]express$/m);
   assert.match(run(["@scope/kit", "--in", dir, "--lang", "node"]).stdout, /@scope\/kit 1\.0\.0 installed/);
+
+  const yarn = project({ "yarn.lock": 'ioredis@^5.0.0:\n  version "5.3.2"\n' });
+  assert.match(run(["redis", "--in", yarn, "--lang", "node"]).stdout, /not found/, "ioredis isn't redis");
+  assert.match(run(["ioredis", "--in", yarn, "--lang", "node"]).stdout, /ioredis is named in .*yarn\.lock/);
 
   const locked = project({ "package-lock.json": JSON.stringify({ packages: { "node_modules/redis": { version: "4.6.13" } } }) });
   assert.match(run(["redis", "--in", locked, "--lang", "node"]).stdout, /node: redis 4\.6\.13 declared in .*package-lock\.json/);
@@ -104,6 +108,17 @@ test("python: a broken project virtualenv is reported, never replaced by the sys
   assert.match(run(["pip", "--in", dangling]).stdout, /project environment .*\.venv is broken/);
 });
 
+test("python: the project's own virtualenv beats an unrelated active env", { skip: !hasPython || isWindows }, () => {
+  const dir = project({ ".venv/pyvenv.cfg": "", ".venv/bin/python": "#!/bin/sh\nexit 4\n" });
+  chmodSync(join(dir, ".venv/bin/python"), 0o755);
+  const other = project({});
+  const r = run(["pip", "--in", dir], { VIRTUAL_ENV: other, CONDA_PREFIX: "/usr", CONDA_DEFAULT_ENV: "base" });
+  assert.match(r.stdout, /project environment .*[\\/]\.venv is broken/, "checked the project's venv, not $VIRTUAL_ENV");
+
+  const nodeProject = project({ "package.json": "{}" });
+  assert.doesNotMatch(run(["pip", "--in", nodeProject], { CONDA_PREFIX: "/usr", CONDA_DEFAULT_ENV: "base" }).stdout, /python:/, "conda base doesn't make a Node project Python");
+});
+
 test("python: skipped outside Python projects unless asked for", () => {
   const dir = project({ "package.json": "{}" });
   const r = run(["pip", "--in", dir]);
@@ -134,11 +149,11 @@ test("go: reads go.mod, honours replace, and matches short and import paths", ()
   assert.match(run(["github.com/burntsushi/toml", "--in", dir, "--lang", "go"], env).stdout, /^go: github\.com\/BurntSushi\/toml v1\.3\.2 installed .*\n  source: .*!burnt!sushi[\\/]toml@v1\.3\.2$/m);
   assert.match(run(["pgx", "--in", dir, "--lang", "go"], env).stdout, /go: github\.com\/jackc\/pgx\/v5 v5\.5\.1 declared/);
   assert.match(run(["golang.org/x/net/http2", "--in", dir, "--lang", "go"], env).stdout, /go: golang\.org\/x\/net v0\.20\.0/);
-  assert.match(run(["go-redis", "--in", dir, "--lang", "go"], env).stdout, /installed .*\n  source: .*go-redis\n  note: replaced by the local folder \.\.\/go-redis/);
+  assert.match(run(["go-redis", "--in", dir, "--lang", "go"], env).stdout, /go: \.\.\/go-redis \(replaces github\.com\/redis\/go-redis\/v9\) \(local\) installed .*\n  source: .*go-redis\n  note: the local folder is the code that builds/);
   assert.match(run(["github.com/bad/mod", "--in", dir, "--lang", "go"], env).stdout, /not found/, "exclude isn't a requirement");
 
   writeFileSync(join(dir, "go.mod"), "module example.com/app\nrequire github.com/BurntSushi/toml v1.3.2\nreplace github.com/BurntSushi/toml => github.com/myfork/toml v1.4.0\n");
-  assert.match(run(["toml", "--in", dir, "--lang", "go"], env).stdout, /v1\.4\.0 installed .*\n  source: .*myfork[\\/]toml@v1\.4\.0\n  note: replaced by github\.com\/myfork\/toml/);
+  assert.match(run(["toml", "--in", dir, "--lang", "go"], env).stdout, /go: github\.com\/myfork\/toml \(replaces github\.com\/BurntSushi\/toml\) v1\.4\.0 installed .*\n  source: .*myfork[\\/]toml@v1\.4\.0\n  note: the replacement is the code that builds/);
 });
 
 test("go: asking Go never downloads a toolchain or rewrites go.mod", { skip: spawnSync("go", ["version"]).error !== undefined }, () => {
@@ -148,7 +163,7 @@ test("go: asking Go never downloads a toolchain or rewrites go.mod", { skip: spa
   const r = run(["toml", "--in", dir, "--lang", "go"], { GOMODCACHE: project({}) });
   assert.ok(Date.now() - started < 15000, "no toolchain download");
   assert.match(r.stdout, /go: github\.com\/BurntSushi\/toml v1\.3\.2 declared/);
-  assert.equal(spawnSync("cat", [join(dir, "go.mod")], { encoding: "utf8" }).stdout, text);
+  assert.equal(readFileSync(join(dir, "go.mod"), "utf8"), text);
 });
 
 test("rust: lists every locked version, says which is direct, and where each comes from", () => {

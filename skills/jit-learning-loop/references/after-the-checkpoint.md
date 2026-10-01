@@ -18,17 +18,24 @@ Then make the smallest change that fixes the problem, with tests as usual. If th
 
 Before calling it done (once any urgent mitigation is out), prove the new test catches the bug: it must fail without the fix, on its own assertion rather than an import error, and pass with it. A test that passes either way tests nothing, and the red-then-green pair is the user's evidence that the fix works, not just yours. At level 3, ask them to show you the pair instead.
 
-In a git repo where the fix's files hold nothing but the fix, stash just those files under a name (`--include-untracked` covers a file the fix created), check the stash is really there, and only then go on:
+In a git repo where the fix's files hold nothing but the fix, stash just those files under a name. Name the files, not their folder, and add `--include-untracked` if the fix created one. Run this first, on its own:
 
 ```bash
 git stash push --include-untracked -m red-check -- <fix files>
 git stash list -1
+```
+
+Go on only if that last line shows `red-check`. If it doesn't, nothing was stashed, and the `pop` below would apply the user's own stash instead: stop here. Then:
+
+```bash
 <test command> <new test>
 git stash pop
 <test command>
 ```
 
-`git stash list -1` must show `red-check`. If it doesn't, nothing was stashed: stop, because the next `pop` would apply the user's own stash. Never pop a stash you didn't just create, and if `pop` reports a conflict, stop and tell the user (the stash is kept). With no git, or the user's own edits in those files: copy the fixed files aside, undo the fix, run the test, then copy them back. Report both results.
+Never pop a stash you didn't just create. If `pop` reports a conflict, stop and tell the user (the stash is kept). With no git, or the user's own edits in those files: copy the fixed files aside, undo the fix, run the test, then copy them back. Report both results.
+
+A test that catches the original bug can still miss the next one. Break each invariant from step 5 once (move the check outside the lock, drop the expiry) and confirm some test fails. One that passes is a gap: add a test, or name it to the user as a known hole.
 
 ## 5. Explain the diff
 
