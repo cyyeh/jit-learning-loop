@@ -120,7 +120,7 @@ Level: 1, try level 2 on the next concurrency bug
 
 Keep only lessons that would make a **different** problem faster next time. "The lock lives in `payments/checkout.py`" is local; "releasing a lock needs an ownership check" transfers. Write the lessons in the user's language, but keep the field names (`Task:`, `Learned:`, `Level:`...) in English so the next agent and the script can read them.
 
-If the user keeps a log, add the entry at the top; ask once where it lives (`LEARNING_LOG.md` in the repo root is a sensible default). Otherwise show the entry and offer to start one. To add it, write the entry minus its `##` line to a temporary file (a file, not `echo`, so the shell can't run backticks in the lessons) and run `node <this skill's folder>/scripts/learning-log.mjs add --log <log path> --topic "<topic>" --file <entry file>`. It adds the dated heading, puts the entry on top, and rejects one missing a task, 1–3 numbered lessons or a level. Without Node, edit the log directly. `references/learning-log.md` has the template and more examples.
+If the user keeps a log, add the entry at the top; ask once where it lives (`LEARNING_LOG.md` in the repo root is a sensible default). Otherwise show the entry and offer to start one. To add it, write the entry minus its `##` line to a temporary file outside the repo (a file, not `echo`, so the shell can't run backticks in the lessons) and run `node <this skill's folder>/scripts/learning-log.mjs add --log <log path> --topic "<topic>" --file <entry file>`. It adds the dated heading, puts the entry on top, and rejects one missing a task, 1–3 numbered lessons or a level. Without Node, edit the log directly. `references/learning-log.md` has the template and more examples.
 
 ## Fading
 

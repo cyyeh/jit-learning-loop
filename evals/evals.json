@@ -44,7 +44,7 @@
       "expectations": [
         "Engages with the user's proposal first, stating what is correct about it and why",
         "Explains or asks why select_related fits customer (forward FK) while prefetch_related fits items (reverse FK)",
-        "Surfaces the remaining N+1 on item.product (template touches item.product.name)",
+        "Leads the user to the remaining N+1 on item.product (e.g. points at what the template touches, item.product.name)",
         "Does not name the item.product N+1 outright before the user has had a chance to find it; uses a question or hint pointing at the template instead",
         "Suggests a way to verify query counts (e.g. assertNumQueries, django-debug-toolbar, connection.queries)",
         "Does not edit views.py or hand over a rewritten file unprompted",

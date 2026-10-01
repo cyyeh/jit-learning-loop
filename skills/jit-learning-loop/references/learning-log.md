@@ -79,7 +79,7 @@ node <skill folder>/scripts/learning-log.mjs find --log LEARNING_LOG.md redis lo
 
 `find` matches any of the words, so pass a few (`redis lock race`). English words match at word starts ("lock" finds "locking", not "blocking"); other scripts match anywhere. It can't judge relevance or translate: if nothing matches, `list` the topics and decide yourself whether one is related.
 
-Step 7, add the entry. Write it to a temporary file with no `##` line; the script adds `## <date> · <topic>`:
+Step 7, add the entry. Write it to a temporary file outside the repo, with no `##` line (the script adds `## <date> · <topic>`), and delete the file afterwards:
 
 ```text
 Task: Stop double-charge when users double-click Pay
@@ -95,4 +95,4 @@ Level: 1, try 2
 node <skill folder>/scripts/learning-log.mjs add --log LEARNING_LOG.md --topic "Redis locking" --file <entry file>
 ```
 
-Use `--file` rather than `echo` or a shell string, because the shell would run any backticks in the lessons. (The entry can also come on stdin through a quoted heredoc, `<<'EOF'`.) `add` creates the log if it's missing and inserts the entry above the newest one without changing anything else in the file. It refuses an entry with no `Task:`, no `Learned:`, zero or more than three numbered lessons, no level of 1–3, a `##` line inside it, or an identical copy already in the log. It also refuses to guess where to insert in a log whose entries have no `##` headings; add those by hand. Keep the field names (`Task:`, `Learned:`, `Level:`) in English even when the lessons are in another language, so the script and the next agent can read them.
+Use `--file` rather than `echo` or a shell string, because the shell would run any backticks in the lessons. (The entry can also come on stdin through a quoted heredoc, `<<'EOF'`.) `add` creates the log if it's missing and inserts the entry above the newest one without changing anything else in the file. It refuses an entry with no `Task:`, no `Learned:`, zero or more than three numbered lessons, no level of 1–3, a `##` line inside it, or an identical copy already in the log. Only dated `## YYYY-MM-DD · ...` headings count as entries, so a `## How to use this log` section or a fenced template in the header is left alone. If some entries lack their own dated heading, `list` and `find` say so and `add` refuses to guess where "newest first" goes; give those entries headings first. Keep the field names (`Task:`, `Learned:`, `Level:`) in English even when the lessons are in another language, so the script and the next agent can read them.

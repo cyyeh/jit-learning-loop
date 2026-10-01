@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, existsSync, symlinkSync, chmodSync, statSync, lstatSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -110,12 +110,48 @@ test("entries without ## headings are flagged, never silently missed", () => {
   const log = tempLog();
   const original = "# Log\n\nTask: Stop double-charge\nLearned:\n1. A race.\nLevel: 1, try 2\n";
   writeFileSync(log, original);
-  assert.match(run(["list", "--log", log]).stdout, /entries without a "## date · topic" heading/);
-  assert.match(run(["find", "--log", log, "race"]).stdout, /entries without a "## date · topic" heading/);
+  assert.match(run(["list", "--log", log]).stdout, /entries without their own "## YYYY-MM-DD · topic" heading/);
+  assert.match(run(["find", "--log", log, "race"]).stdout, /entries without their own "## YYYY-MM-DD · topic" heading/);
   const r = add(log, "New", "2026-02-02", ENTRY);
   assert.equal(r.status, 1);
-  assert.match(r.stderr, /Add this entry by hand/);
+  assert.match(r.stderr, /Give those entries headings first/);
   assert.equal(readFileSync(log, "utf8"), original);
+});
+
+test("an unheaded entry hiding under a headed one is flagged too", () => {
+  const log = tempLog();
+  const original = "# Log\n\n## 2026-02-01 · Postgres locks\nTask: a\nLearned:\n1. b\nLevel: 2\n\nTask: Kafka dupes\nLearned:\n1. c\nLevel: 1\n";
+  writeFileSync(log, original);
+  assert.match(run(["list", "--log", log]).stdout, /without their own/);
+  assert.match(run(["find", "--log", log, "kafka"]).stdout, /without their own/);
+  assert.equal(add(log, "New", "2026-03-03", ENTRY).status, 1);
+  assert.equal(readFileSync(log, "utf8"), original);
+});
+
+test("a fenced template or an undated ## section in the header is not an entry", () => {
+  const log = tempLog();
+  writeFileSync(log, "# Log\n\n## How to use this log\n\n````text\n```\nTask: <what>\nLearned:\n1. <lesson>\nLevel: <1-3>\n```\n## not a heading\n````\n\n## 2026-01-01 · Old\nTask: x\nLearned:\n1. y\nLevel: 3\n");
+  assert.equal(run(["list", "--log", log]).stdout.trim(), "2026-01-01 · Old · level 3");
+  const r = add(log, "New", "2026-02-02", ENTRY);
+  assert.equal(r.status, 0, r.stderr);
+  const text = readFileSync(log, "utf8");
+  assert.ok(text.indexOf("## not a heading") < text.indexOf("## 2026-02-02 · New"), "new entry goes below the header");
+  assert.ok(text.indexOf("## 2026-02-02 · New") < text.indexOf("## 2026-01-01 · Old"));
+});
+
+test("add writes through a symlinked log and keeps its permissions", { skip: process.platform === "win32" }, () => {
+  const dir = tempDir();
+  const real = join(dir, "real.md");
+  const link = join(dir, "link.md");
+  writeFileSync(real, "# Log\n");
+  chmodSync(real, 0o600);
+  symlinkSync(real, link);
+  const r = add(link, "New", "2026-02-02", ENTRY);
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(lstatSync(link).isSymbolicLink(), "link is still a link");
+  assert.ok(readFileSync(real, "utf8").includes("## 2026-02-02 · New"));
+  assert.equal(statSync(real).mode & 0o777, 0o600);
+  assert.deepEqual(readdirSync(dir).sort(), ["link.md", "real.md"], "no temp file left behind");
 });
 
 test("add creates the log, puts newer entries on top, and stores the entry verbatim", () => {
@@ -173,6 +209,7 @@ test("add rejects entries that break the format, and writes nothing", () => {
   assert.match(run(["add", "--log", log, "--file", entryFile(ENTRY)]).stderr, /needs --topic/);
   assert.match(run(["add", "--log", log, "--topic", "Redis", "locking", "--file", entryFile(ENTRY)]).stderr, /quote a topic/);
   assert.match(run(["add", "--log", join(tempDir(), "missing", "LOG.md"), "--topic", "t", "--file", entryFile(ENTRY)]).stderr, /folder .* doesn't exist/);
+  assert.match(run(["add", "--log", log, "--topic", "a\nb", "--file", entryFile(ENTRY)]).stderr, /single line/);
   assert.ok(!existsSync(log), "nothing was written");
 });
 
@@ -189,4 +226,12 @@ test("add still reads the entry from stdin when --file is omitted", () => {
   const r = run(["add", "--log", log, "--topic", "t", "--date", "2026-01-01"], ENTRY);
   assert.equal(r.status, 0, r.stderr);
   assert.ok(readFileSync(log, "utf8").includes(ENTRY.trim()));
+});
+
+test("--help works in any position", () => {
+  for (const args of [["--help"], ["-h"], ["find", "--help"]]) {
+    const r = run(args);
+    assert.equal(r.status, 0, args.join(" "));
+    assert.match(r.stdout, /^usage:/);
+  }
 });
