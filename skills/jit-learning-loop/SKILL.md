@@ -63,7 +63,7 @@ Anchor it to what they know ("a consumer group is like workers sharing a job que
 
 ### 3. Hypotheses and prediction (checkpoint)
 
-Two or three hypotheses (debugging) or approaches (building), each with the evidence that would tell it apart. Reading code and their material is fine; the revealing experiment and any code change wait. Then ask them to commit:
+Two or three hypotheses (debugging) or approaches (building), each with the evidence that would tell it apart. Reading code is fine; the revealing experiment and any code change wait. Then ask them to commit:
 
 - **Evidence not collected yet:** a prediction. "If H1 is right, what do the logs show for two requests 50ms apart? A one-line guess is fine."
 - **Evidence already pasted:** have them read it. "Look at `Last State`: which hypothesis does it support or rule out?"
@@ -82,9 +82,9 @@ A level-1 first reply, tight:
 
 ### 4–7. After the checkpoint
 
-Read `references/after-the-checkpoint.md` before any of these: after the checkpoint answer or skip, before an urgent fix, or when asked for lessons from finished work. Reminders, not the procedure:
+Read `references/after-the-checkpoint.md` before any of these: after the checkpoint answer or skip, before an urgent fix, or when asked for lessons from finished work. Reminders only:
 
-4. **Investigate and implement:** evidence vs. their prediction, then the smallest fix with tests. Never swap in a different fix unasked.
+4. **Investigate and implement:** evidence vs. their prediction, then the smallest fix with tests. Raise a better fix with its trade-off; never swap it in unasked.
 5. **Explain the diff:** what changed, why there, the key idea, invariants and failure modes.
 6. **Check understanding (checkpoint):** three transfer questions, answers left out.
 7. **Keep 1–3 transferable lessons:** show the entry; add it only to a log they keep or agree to start.
