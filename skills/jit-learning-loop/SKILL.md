@@ -1,6 +1,6 @@
 ---
 name: jit-learning-loop
-description: Learn-while-doing mode for coding tasks. Use when the user wants to understand, not just finish - they are new to the library, system or codebase, ask to learn as they go, want their own plan critiqued, or want lessons from finished work. Ships the task and leaves a reusable mental model. Skip for plain get-it-done requests.
+description: Learn-while-doing mode for coding tasks. Use when the user wants to understand, not just finish - new to the library, system or codebase, asking to learn as they go, wanting their own plan or code critiqued so they learn, or wanting lessons from finished work. Ships the task and leaves a reusable mental model. Skip for plain get-it-done requests.
 license: Apache-2.0
 ---
 
@@ -31,7 +31,7 @@ The answer changes as they get better (see [Fading](#fading)).
 1. **Assistance level** for this topic: first encounter, seen before, or familiar? Read the phrasing ("never used Redis" vs. "I think the fix is X, can you check?") and whether they already propose a solution. When unsure, use level 1. See [Fading](#fading).
 2. **Known anchors:** nearby things they clearly know (HTTP, SQL transactions, queues, React state). Hang the new model on these.
 
-If a learning log exists (step 7), earlier entries on this topic tell you the level and anchors. Instead of reading the whole log, run `node <this skill's folder>/scripts/learning-log.mjs find --log <log path> <topic words>` (or `list` for every topic and its level). Without Node, read the log.
+If a learning log exists (step 7), earlier entries on this topic tell you the level and anchors. Read it. Once it's long, `node <this skill's folder>/scripts/learning-log.mjs find --log <log path> <topic words>` pulls out just the matching entries; if that finds nothing, `list` shows every topic and its level so you can judge what's related.
 
 ### 1. Map the gap before any code
 
@@ -49,7 +49,7 @@ In a few lines, tell the user what this task needs:
 
 Don't mix the types up: treat a behavior unknown ("why does prod time out sometimes?") as a concept unknown and you get a nice explanation and no diagnosis. When a gap is hard to classify, read `references/unknown-types.md`.
 
-If a gap sits in a **fundamental** (concurrency, database transactions, networking, distributed systems, algorithms, type systems, security, operating systems), say so in one line and name what to study later. A just-in-time model finishes the task but is too thin to tell when an agent's answer is wrong. Don't make it today's lesson.
+If a gap sits in a **fundamental** (concurrency, database transactions, networking, distributed systems, algorithms, type systems, security, operating systems), say so in one line and name what to study later. A just-in-time model finishes the task but is too thin to tell when an agent's answer is wrong. Don't make it today's lesson: the aim is fundamentals plus just-in-time specialization, not just-in-time instead of fundamentals.
 
 ### 2. Give the minimum viable mental model
 
@@ -107,19 +107,20 @@ Leave the answers out and offer to check theirs. Respond to their reasoning, not
 Close with a short learning-log entry:
 
 ```text
-## YYYY-MM-DD · <topic>
-Task: <one line: what was actually being done>
-Unknown types: <concept / API / codebase / behavior>
+## 2026-03-14 · Redis lock / check-then-act race
+Task: Stop double-charge when users double-click Pay
+Unknown types: concept (race, lock ownership), API (Redis SET NX PX)
 Learned:
-1. <transferable lesson>
-2. <optional, up to 3>
-Next time: <what to try or read before the next encounter>
-Level: <1 | 2 | 3>, <suggested level for next encounter>
+1. Check-then-act across concurrent requests is a race, whatever language or framework.
+2. SET NX + TTL gives a simple lock, but release must check ownership (a token) or you free someone else's lock.
+3. TTL prevents deadlock but opens a lease-expiry race. For money, prefer idempotency at the DB level.
+Next time: look at fencing tokens if a lock guards anything that must be exactly-once.
+Level: 1, try level 2 on the next concurrency bug
 ```
 
-Keep only lessons that would make a **different** problem faster next time. "The lock lives in `payments/checkout.py`" is local; "releasing a lock needs an ownership check" transfers.
+Keep only lessons that would make a **different** problem faster next time. "The lock lives in `payments/checkout.py`" is local; "releasing a lock needs an ownership check" transfers. Write the lessons in the user's language, but keep the field names (`Task:`, `Learned:`, `Level:`...) in English so the next agent and the script can read them.
 
-If the user keeps a log, add the entry at the top; ask once where it lives (`LEARNING_LOG.md` in the repo root is a sensible default). Otherwise show the entry and offer to start one. To add it, pipe the entry minus its `##` heading to `node <this skill's folder>/scripts/learning-log.mjs add --log <log path> --topic "<topic>"`, which dates it, puts it on top, and rejects entries missing a task, 1–3 lessons or a level. `references/learning-log.md` has filled-in examples.
+If the user keeps a log, add the entry at the top; ask once where it lives (`LEARNING_LOG.md` in the repo root is a sensible default). Otherwise show the entry and offer to start one. To add it, write the entry minus its `##` line to a temporary file (a file, not `echo`, so the shell can't run backticks in the lessons) and run `node <this skill's folder>/scripts/learning-log.mjs add --log <log path> --topic "<topic>" --file <entry file>`. It adds the dated heading, puts the entry on top, and rejects one missing a task, 1–3 numbered lessons or a level. Without Node, edit the log directly. `references/learning-log.md` has the template and more examples.
 
 ## Fading
 
@@ -131,7 +132,7 @@ The goal is for the user to need you less on a topic over time.
 | **2 · Shared** (~50/50) | Seen it before | They propose the approach and reasoning first. You critique it, then build it together. |
 | **3 · Review** (agent ~20%) | Familiar | They implement. You look for flaws and ask questions rather than rewriting. |
 
-At levels 2 and 3, don't take over, especially when their proposal is *mostly* right. Say what's right, what's missing and what would break, then let them revise: rewriting it takes back the cognitive work they're building. At level 3, prefer questions ("what happens if this runs twice?") to corrections. If they're stuck after one hint, give a stronger hint, then the answer.
+At levels 2 and 3, don't take over, especially when their proposal is *mostly* right. Critique their reasoning: what's right, what's missing, what would break. Then let them revise; rewriting their solution takes back the very cognitive work they're building. At level 3, prefer questions ("what happens if this runs twice?") to corrections. If they're stuck after one hint, give a stronger hint, then the answer.
 
 The user can set the level directly ("level 2 on this one"). If they handled the checkpoints well, suggest moving up in the log entry. Read `references/fading.md` when the level is unclear or you're moving the user between levels.
 

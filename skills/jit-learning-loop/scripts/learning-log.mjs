@@ -1,33 +1,39 @@
 #!/usr/bin/env node
-// Reads and writes the learning log (step 0 and step 7 of SKILL.md), so the
-// agent doesn't have to load the whole log or hand-place entries.
-// Zero dependencies; Node 18+.
+// Reads and writes the learning log (steps 0 and 7 of SKILL.md), so the agent
+// can look up one topic in a long log and add entries in the same shape and
+// place every time. Zero dependencies; Node 18+.
 //
 //   node learning-log.mjs list [--log PATH]
 //       One line per entry: date · topic · level.
 //   node learning-log.mjs find [--log PATH] [--limit N] TERM...
-//       Entries mentioning any TERM (case-insensitive), best match first,
-//       plus the level they ended at.
-//   node learning-log.mjs add [--log PATH] [--topic TOPIC] [--date YYYY-MM-DD] < entry.txt
+//       Entries mentioning any TERM, best match first, and the level the
+//       best match ended at. ASCII terms match at word starts ("lock" finds
+//       "locking", not "blocking"); other terms match anywhere.
+//   node learning-log.mjs add [--log PATH] --file ENTRY_FILE --topic TOPIC [--date YYYY-MM-DD]
 //       Checks the entry (Task, 1-3 numbered lessons under Learned, a Level
-//       of 1-3), adds the "## date · topic" heading, and inserts it above
-//       the newest entry. Creates the log if it doesn't exist.
+//       of 1-3), adds the "## date · topic" heading and inserts it above the
+//       newest entry. The rest of the file is left byte-for-byte as it was.
+//       Creates the log if it doesn't exist. Reads stdin if --file is omitted.
 //
 // PATH defaults to LEARNING_LOG.md in the current directory.
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, renameSync } from "node:fs";
+import { dirname } from "node:path";
 
 const USAGE = `usage:
   learning-log.mjs list [--log PATH]
   learning-log.mjs find [--log PATH] [--limit N] TERM...
-  learning-log.mjs add  [--log PATH] [--topic TOPIC] [--date YYYY-MM-DD] < entry.txt`;
+  learning-log.mjs add  [--log PATH] --file ENTRY_FILE --topic TOPIC [--date YYYY-MM-DD]`;
 
 const NEW_LOG_HEADER =
   "# Learning log\n\nNewest first. Keep only lessons that will still help the next time a *different* problem comes up.\n";
+const FIELD = /^(Task|Unknown types|Learned|Next time|Level)\s*[:：]/i;
+// A level digit, not part of a bigger number, a decimal or an ordinal ("2nd").
+const LEVEL_DIGIT = /(?<![\d.])([123])(?!\d|\.\d|st\b|nd\b|rd\b|th\b)/g;
 
-function die(msg) {
-  console.error(`learning-log: ${msg}`);
-  process.exit(1);
-}
+class UsageError extends Error {}
+const fail = (msg) => {
+  throw new UsageError(msg);
+};
 
 function parseArgs(argv) {
   const [command, ...rest] = argv;
@@ -35,55 +41,67 @@ function parseArgs(argv) {
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i];
     const value = () => {
-      if (i + 1 >= rest.length) die(`${arg} needs a value\n${USAGE}`);
+      if (i + 1 >= rest.length) fail(`${arg} needs a value`);
       return rest[++i];
     };
     if (arg === "--log") opts.log = value();
     else if (arg === "--limit") opts.limit = Number(value());
     else if (arg === "--topic") opts.topic = value();
     else if (arg === "--date") opts.date = value();
-    else if (arg === "-h" || arg === "--help") {
-      console.log(USAGE);
-      process.exit(0);
-    } else if (arg.startsWith("--")) die(`unknown option ${arg}\n${USAGE}`);
+    else if (arg === "--file") opts.file = value();
+    else if (arg === "-h" || arg === "--help") opts.help = true;
+    else if (arg.startsWith("--")) fail(`unknown option ${arg}`);
     else opts.terms.push(arg);
   }
-  if (!Number.isInteger(opts.limit) || opts.limit < 1) die("--limit must be a positive integer");
+  if (!Number.isInteger(opts.limit) || opts.limit < 1) fail("--limit must be a positive integer");
+  if (command !== "find" && opts.terms.length) {
+    fail(`unexpected argument "${opts.terms[0]}"${command === "add" ? ' (quote a topic with spaces: --topic "Redis locking")' : ""}`);
+  }
   return { command, opts };
 }
 
+// Returns the text without a BOM or CRs, plus what's needed to write it back.
 function readLog(path) {
-  const raw = readFileSync(path, "utf8");
-  return { text: raw.replace(/\r\n/g, "\n"), eol: raw.includes("\r\n") ? "\r\n" : "\n" };
+  let raw = readFileSync(path, "utf8");
+  const bom = raw.startsWith("﻿") ? "﻿" : "";
+  if (bom) raw = raw.slice(1);
+  return { raw, bom, eol: raw.includes("\r\n") ? "\r\n" : "\n", text: raw.replace(/\r\n/g, "\n") };
 }
 
-// Entries are "## " headings; anything before the first one is the header.
-function splitEntries(text) {
+// Lines that start a "## " entry, ignoring any inside ``` or ~~~ fences.
+function headingLines(lines) {
+  const found = [];
+  let fence = null;
+  lines.forEach((line, i) => {
+    const marker = line.match(/^\s*(```|~~~)/)?.[1];
+    if (marker) fence = fence === marker ? null : (fence ?? marker);
+    else if (!fence && line.startsWith("## ")) found.push(i);
+  });
+  return found;
+}
+
+function parseLog(text) {
   const lines = text.split("\n");
-  const firstEntry = lines.findIndex((l) => l.startsWith("## "));
-  if (firstEntry === -1) return { header: text, entries: [] };
-  const entries = [];
-  let current = null;
-  for (const line of lines.slice(firstEntry)) {
-    if (line.startsWith("## ")) {
-      current = { lines: [line] };
-      entries.push(current);
-    } else current.lines.push(line);
-  }
-  return {
-    header: lines.slice(0, firstEntry).join("\n"),
-    entries: entries.map((e, index) => describe(e.lines.join("\n").trimEnd(), index)),
-  };
+  const starts = headingLines(lines);
+  const header = lines.slice(0, starts[0] ?? lines.length).join("\n");
+  const entries = starts.map((start, n) =>
+    describe(lines.slice(start, starts[n + 1] ?? lines.length).join("\n").trimEnd(), n),
+  );
+  // Entries written without a "## " heading (older logs, hand-written ones)
+  // end up in the header, where list and find can't see them.
+  const headless = lines.slice(0, starts[0] ?? lines.length).some((l) => FIELD.test(l));
+  return { header, entries, headless };
 }
 
 function describe(text, index) {
   const heading = text.split("\n", 1)[0].slice(3).trim();
   const date = heading.match(/\d{4}-\d{2}-\d{2}/)?.[0] ?? "";
-  const topic = heading.replace(date, "").replace(/^[\s·\-–—|:]+/, "").trim() || heading;
-  const levelLine = text.match(/^Level[:：](.*)$/m)?.[1] ?? "";
-  // "Level: 1, try level 2 on ..." → level 1, next 2. Works for any language
-  // as long as the digits come in that order.
-  const [level, next] = [...levelLine.matchAll(/(?<![\d.])([123])(?![\d.])/g)].map((m) => m[1]);
+  const topic =
+    heading.replace(date, "").replace(/\(\s*\)/g, "").replace(/^[\s·\-–—|:]+|[\s·\-–—|:]+$/g, "").trim() || heading;
+  const levelLine = text.match(/^Level\s*[:：](.*)$/im)?.[1] ?? "";
+  // "Level: 1, try level 2 on ..." → level 1, next 2. Works in any language
+  // as long as the current level comes first.
+  const [level, next] = [...levelLine.matchAll(LEVEL_DIGIT)].map((m) => m[1]);
   return { text, index, date, topic, level, next };
 }
 
@@ -92,81 +110,147 @@ function levelSummary(e) {
   return e.next && e.next !== e.level ? `level ${e.level}, try ${e.next} next` : `level ${e.level}`;
 }
 
+const label = (e) => [e.date, e.topic].filter(Boolean).join(" · ");
+const HEADLESS_NOTE = (log) =>
+  `Note: ${log} has entries without a "## date · topic" heading, which this script can't see. Read the file directly.`;
+
+function loadForReading(log) {
+  if (!existsSync(log)) {
+    console.log(`No learning log at ${log}.`);
+    return null;
+  }
+  return parseLog(readLog(log).text);
+}
+
 function list(opts) {
-  if (!existsSync(opts.log)) return console.log(`No learning log at ${opts.log}.`);
-  const { entries } = splitEntries(readLog(opts.log).text);
-  if (!entries.length) return console.log(`${opts.log} has no entries yet.`);
-  for (const e of entries) console.log([e.date, e.topic, levelSummary(e)].filter(Boolean).join(" · "));
+  const parsed = loadForReading(opts.log);
+  if (!parsed) return;
+  if (!parsed.entries.length && !parsed.headless) console.log(`${opts.log} has no entries yet.`);
+  for (const e of parsed.entries) console.log(`${label(e)} · ${levelSummary(e)}`);
+  if (parsed.headless) console.log(HEADLESS_NOTE(opts.log));
+}
+
+function matcher(term) {
+  const t = term.toLowerCase();
+  if (/^[\x20-\x7e]+$/.test(t)) {
+    const re = new RegExp(`(?<![a-z0-9])${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i");
+    return (text) => re.test(text);
+  }
+  return (text) => text.toLowerCase().includes(t);
 }
 
 function find(opts) {
-  if (!opts.terms.length) die(`find needs at least one search term\n${USAGE}`);
-  if (!existsSync(opts.log)) return console.log(`No learning log at ${opts.log}.`);
-  const terms = opts.terms.map((t) => t.toLowerCase());
-  const matches = splitEntries(readLog(opts.log).text)
-    .entries.map((e) => ({ ...e, score: terms.filter((t) => e.text.toLowerCase().includes(t)).length }))
+  if (!opts.terms.length) fail("find needs at least one search term");
+  const parsed = loadForReading(opts.log);
+  if (!parsed) return;
+  const tests = opts.terms.map(matcher);
+  const matches = parsed.entries
+    .map((e) => ({ ...e, score: tests.filter((test) => test(e.text)).length }))
     .filter((e) => e.score > 0)
     .sort((a, b) => b.score - a.score || b.date.localeCompare(a.date) || a.index - b.index);
-  if (!matches.length) return console.log(`No entries in ${opts.log} mention: ${opts.terms.join(", ")}.`);
 
-  const shown = matches.slice(0, opts.limit);
-  console.log(shown.map((e) => e.text).join("\n\n"));
-  if (matches.length > shown.length) console.log(`\n(${matches.length - shown.length} more; raise --limit to see them)`);
-  const latest = [...matches].sort((a, b) => b.date.localeCompare(a.date) || a.index - b.index)[0];
-  console.log(`\nMost recent match: ${[latest.date, latest.topic].filter(Boolean).join(" · ")}, ${levelSummary(latest)}.`);
+  if (!matches.length) {
+    console.log(`No entries in ${opts.log} mention: ${opts.terms.join(", ")}. Run "list" and judge whether any topic is related.`);
+  } else {
+    const shown = matches.slice(0, opts.limit);
+    console.log(shown.map((e) => e.text).join("\n\n"));
+    if (matches.length > shown.length) console.log(`\n(${matches.length - shown.length} more; raise --limit to see them)`);
+    console.log(`\nBest match: ${label(matches[0])}, ${levelSummary(matches[0])}.`);
+  }
+  if (parsed.headless) console.log(HEADLESS_NOTE(opts.log));
 }
 
-function checkEntry(body) {
+function checkEntry(entry) {
   const problems = [];
-  if (!/^Task[:：]\s*\S/m.test(body)) problems.push('missing a "Task:" line');
+  const lines = entry.split("\n");
+  if (!lines.some((l) => /^Task\s*[:：]\s*\S/i.test(l))) problems.push('missing a "Task:" line');
 
-  // Lessons run from "Learned:" to the next "Field:" line; a lesson may wrap.
-  const lines = body.split("\n");
-  const start = lines.findIndex((l) => /^Learned[:：]/.test(l));
+  // Lessons run from "Learned:" to the next field. Count the numbered lines;
+  // wrapped lines and indented sub-points belong to the lesson above them.
+  const start = lines.findIndex((l) => /^Learned\s*[:：]/i.test(l));
   if (start === -1) problems.push('missing a "Learned:" line followed by numbered lessons');
   else {
     const rest = lines.slice(start + 1);
-    const end = rest.findIndex((l) => /^[A-Z][A-Za-z ]*[:：]/.test(l));
-    const lessons = rest.slice(0, end === -1 ? undefined : end).filter((l) => /^\s*(\d+[.)]|[-*])\s+\S/.test(l)).length;
-    if (lessons < 1 || lessons > 3) problems.push(`has ${lessons} lessons under "Learned:"; keep 1-3 transferable ones`);
+    const end = rest.findIndex((l) => FIELD.test(l));
+    const block = rest.slice(0, end === -1 ? undefined : end);
+    const lessons = block.filter((l) => /^\d+[.)]\s+\S/.test(l)).length;
+    if (lessons < 1 || lessons > 3) problems.push(`has ${lessons} numbered lessons under "Learned:"; keep 1-3 transferable ones`);
   }
 
-  const level = body.match(/^Level[:：](.*)$/m);
+  const level = entry.match(/^Level\s*[:：](.*)$/im);
   if (!level) problems.push('missing a "Level:" line');
-  else if (!/(?<![\d.])[123](?![\d.])/.test(level[1])) problems.push('"Level:" needs a level of 1, 2 or 3');
+  else if (![...level[1].matchAll(LEVEL_DIGIT)].length) problems.push('"Level:" needs a level of 1, 2 or 3');
+
+  if (headingLines(lines.slice(1)).length) problems.push('has a "## " line inside the entry, which would split it in two');
   return problems;
 }
 
-function add(opts) {
-  let body;
-  try {
-    body = readFileSync(0, "utf8");
-  } catch {
-    die(`add reads the entry from stdin\n${USAGE}`);
-  }
-  body = body.replace(/\r\n/g, "\n").trim();
-  if (!body) die(`add reads the entry from stdin, and it was empty\n${USAGE}`);
-
-  if (body.startsWith("## ")) {
-    if (opts.topic || opts.date) die("the entry already has a ## heading; drop --topic and --date, or drop the heading");
-  } else {
-    if (!opts.topic) die('add needs --topic (or an entry that starts with a "## date · topic" heading)');
-    const date = opts.date ?? new Date().toLocaleDateString("sv-SE"); // YYYY-MM-DD, local time
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) die(`--date must be YYYY-MM-DD, got ${date}`);
-    body = `## ${date} · ${opts.topic.trim()}\n${body}`;
-  }
-
-  const problems = checkEntry(body);
-  if (problems.length) die(`entry not added:\n- ${problems.join("\n- ")}`);
-
-  const { text, eol } = existsSync(opts.log) ? readLog(opts.log) : { text: NEW_LOG_HEADER, eol: "\n" };
-  const { header, entries } = splitEntries(text);
-  const parts = [header.trimEnd(), body, ...entries.map((e) => e.text)].filter(Boolean);
-  writeFileSync(opts.log, (parts.join("\n\n") + "\n").replace(/\n/g, eol));
-  console.log(`Added "${body.split("\n", 1)[0]}" to the top of ${opts.log}.`);
+function today() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-const { command, opts } = parseArgs(process.argv.slice(2));
+function isRealDate(s) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = new Date(`${s}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(s);
+}
+
+function readEntry(opts) {
+  if (opts.file) return readFileSync(opts.file, "utf8");
+  if (process.stdin.isTTY) fail("add needs the entry: pass --file ENTRY_FILE (or pipe it on stdin)");
+  return readFileSync(0, "utf8");
+}
+
+function add(opts) {
+  if (!opts.topic?.trim()) fail("add needs --topic");
+  const date = opts.date ?? today();
+  if (!isRealDate(date)) fail(`--date must be a real YYYY-MM-DD date, got "${date}"`);
+
+  let body = readEntry(opts).replace(/^﻿/, "").replace(/\r\n/g, "\n").trim();
+  if (!body) fail("the entry is empty");
+  if (body.startsWith("## ")) fail('leave the "## date · topic" heading out of the entry; --topic and --date make it');
+  const entry = `## ${date} · ${opts.topic.trim()}\n${body}`;
+  const problems = checkEntry(entry);
+  if (problems.length) fail(`entry not added:\n- ${problems.join("\n- ")}`);
+
+  if (!existsSync(dirname(opts.log))) {
+    fail(`the folder for ${opts.log} doesn't exist${opts.log.startsWith("~") ? ' (the shell only expands "~" when it is unquoted)' : ""}`);
+  }
+  const log = existsSync(opts.log) ? readLog(opts.log) : { raw: NEW_LOG_HEADER, bom: "", eol: "\n", text: NEW_LOG_HEADER };
+  const { entries, headless } = parseLog(log.text);
+  if (headless) fail(`${opts.log} has entries without a "## date · topic" heading, so the newest-first position is unclear. Add this entry by hand.`);
+  if (entries.some((e) => e.text.slice(e.text.indexOf("\n") + 1).trim() === body)) {
+    fail(`${opts.log} already has this entry; nothing added.`);
+  }
+
+  // Insert above the first entry (or append), leaving every other byte alone.
+  const block = entry.replace(/\n/g, log.eol) + log.eol;
+  const rawLines = log.raw.split("\n");
+  const first = headingLines(log.text.split("\n"))[0];
+  let updated;
+  if (first !== undefined) {
+    const offset = rawLines.slice(0, first).reduce((n, l) => n + l.length + 1, 0);
+    updated = log.raw.slice(0, offset) + block + log.eol + log.raw.slice(offset);
+  } else {
+    const base = log.raw.replace(/\s+$/, "");
+    updated = (base ? base + log.eol + log.eol : "") + block;
+  }
+
+  const tmp = `${opts.log}.${process.pid}.tmp`;
+  writeFileSync(tmp, log.bom + updated);
+  renameSync(tmp, opts.log);
+  console.log(`Added "## ${date} · ${opts.topic.trim()}" as the newest entry in ${opts.log}.`);
+}
+
 const commands = { list, find, add };
-if (!commands[command]) die(command ? `unknown command ${command}\n${USAGE}` : USAGE);
-commands[command](opts);
+try {
+  const { command, opts } = parseArgs(process.argv.slice(2));
+  if (opts.help) console.log(USAGE);
+  else if (!commands[command]) fail(command ? `unknown command ${command}` : "no command given");
+  else commands[command](opts);
+} catch (err) {
+  if (err instanceof UsageError) console.error(`learning-log: ${err.message}\n${USAGE}`);
+  else console.error(`learning-log: ${err.code === "ENOENT" ? `no such file or directory: ${err.path}` : err.message}`);
+  process.exit(1);
+}
