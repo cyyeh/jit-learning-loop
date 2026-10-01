@@ -14,8 +14,8 @@ jobs:
           node-version: 22
       - name: Check SKILL.md against the Agent Skills spec
         run: node scripts/validate.mjs
-      - name: Test the learning-log helper
-        run: node --test scripts/learning-log.test.mjs
+      - name: Test the skill's helper scripts
+        run: node --test scripts/*.test.mjs
       - name: Check the skill is discoverable by `npx skills`
         env:
           DISABLE_TELEMETRY: "1"

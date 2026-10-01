@@ -16,11 +16,34 @@ Otherwise, work at full speed; this is where the agent's productivity belongs. R
 
 Then make the smallest change that fixes the problem, with tests as usual. If there's a better fix than the one the user or a teammate suggested (say, an idempotency key instead of a distributed lock), raise it with the trade-off. Don't quietly swap it in.
 
+Before calling it done (once any urgent mitigation is out), prove the new test catches the bug: it must fail without the fix, on its own assertion rather than an import error, and pass with it. A test that passes either way tests nothing, and the red-then-green pair is the user's evidence that the fix works, not just yours. At level 3, ask them to show you the pair instead.
+
+In a git repo where the fix's files hold nothing but the fix, stash just those files under a name. Name the files, not their folder, and add `--include-untracked` if the fix created one. Run this first, on its own:
+
+```bash
+git stash push --include-untracked -m red-check -- <fix files>
+git stash list -1
+```
+
+Go on only if that last line shows `red-check`. If it doesn't, nothing was stashed, and the `pop` below would apply the user's own stash instead: stop here. Then:
+
+```bash
+<test command> <new test>
+git stash pop
+<test command>
+```
+
+Never pop a stash you didn't just create. If `pop` reports a conflict, stop and tell the user (the stash is kept). With no git, or the user's own edits in those files: copy the fixed files aside, undo the fix, run the test, then copy them back.
+
+A test that catches the original bug can still miss the next one. Break each invariant from step 5 once, including the plausible wrong fixes a teammate might try (an in-process lock instead of a shared one, the check moved outside the lock, the lock around only the side effect), and confirm some test fails each time. A break that every test survives is a missing test: add it before you hand over.
+
+Tell the user the outcome in a line or two (red without the fix, green with it, which breaks the tests caught), not the procedure. The reply's room belongs to their prediction, the diff and the questions.
+
 ## 5. Explain the diff
 
 Don't walk through whole files. Explain only what changed, as if they'll have to maintain it six months from now:
 
-1. **What changed:** which files and places, briefly.
+1. **What changed:** which files and places, briefly. `git status --short` lists them, new files included; leave out anything that was already changed before you started.
 2. **Why here:** why these places and not others, and which alternative you rejected.
 3. **The key idea:** the one concept from the minimum model that the change depends on.
 4. **Invariants and failure modes:** what must stay true for this to keep working, and where to look first if it breaks.
@@ -55,10 +78,11 @@ Level: 1, try level 2 on the next concurrency bug
 
 Keep only lessons that would make a **different** problem faster next time. "The lock lives in `payments/checkout.py`" is local; "releasing a lock needs an ownership check" transfers. Write the lessons in the user's language, but keep the field names (`Task:`, `Learned:`, `Level:`...) in English so the next agent and the script can read them. If they handled the checkpoints well, suggest moving up a level in the `Level:` line (`fading.md` has the signals).
 
-Always show the entry. Write it to a log only if the user keeps one or agrees to start one; ask once where it lives (`LEARNING_LOG.md` in the repo root is a sensible default). To add it, write the entry without its `##` line to a temporary file outside the repo (a file, not `echo`, so the shell can't run backticks in the lessons), run the script below, then delete the file. Without Node, add it at the top of the log by hand.
+Always show the entry. Write it to a log only if the user keeps one or agrees to start one; ask once where it lives (`LEARNING_LOG.md` in the repo root is a sensible default). To add it to their log, write the entry without its `##` line to a temporary file outside the repo (a file, not `echo`, so the shell can't run backticks in the lessons), run `add`, then delete the file. `add` checks the entry first. If you're only showing it and unsure of the format, `check` runs the same checks without writing anything. Without Node, check the format by eye and add it at the top of the log by hand.
 
 ```bash
 node <skill-dir>/scripts/learning-log.mjs add --log LEARNING_LOG.md --topic "Redis lock / check-then-act race" --file <entry-file>
+node <skill-dir>/scripts/learning-log.mjs check --file <entry-file>
 ```
 
 `learning-log.md` (next to this file) has the template, more examples, the local-vs-transferable test, and what the script checks.

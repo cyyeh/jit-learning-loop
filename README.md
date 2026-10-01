@@ -97,7 +97,9 @@ skills/jit-learning-loop/    the skill (what `npx skills add` installs)
     after-the-checkpoint.md  steps 4-7 in full, read before any of them (after the first checkpoint, an urgent fix, or a lessons request)
     fading.md                assistance levels, how to choose one, worked example
     learning-log.md          template, local vs. transferable, examples
-  scripts/learning-log.mjs   optional helper: look up past entries, add a checked entry (Node, no deps)
+  scripts/                   optional helpers (Node, no deps)
+    learning-log.mjs         look up past entries and levels; check or add an entry
+    installed.mjs            which version of a library the project really has, and where its source is
   agents/openai.yaml         optional Codex / ChatGPT display metadata
 .claude-plugin/              optional Claude Code plugin + marketplace manifests
 evals/
@@ -109,7 +111,8 @@ docs/
 demo/                        recorded sessions + GitHub Pages site (one folder per scenario, eval snapshot)
 scripts/
   validate.mjs               Agent Skills spec check (no dependencies; runs in CI)
-  learning-log.test.mjs      tests for the skill's learning-log helper (runs in CI)
+  learning-log.test.mjs      tests for learning-log.mjs (run in CI)
+  installed.test.mjs         tests for installed.mjs (run in CI)
   install.sh                 dev symlink installer (any agent's skills directory)
 ```
 
@@ -117,7 +120,7 @@ scripts/
 
 ```bash
 node scripts/validate.mjs                    # spec check: name, description and body length, YAML safety, reference paths
-node --test scripts/learning-log.test.mjs    # tests for the learning-log helper
+node --test scripts/*.test.mjs               # tests for the skill's helper scripts
 npx skills add . --list                      # confirm the skills CLI discovers it
 ```
 

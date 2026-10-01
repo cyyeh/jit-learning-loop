@@ -12,6 +12,9 @@
 //       "locking", not "blocking"); other terms match anywhere. Suggests a
 //       starting level only when the best match has every TERM and is also
 //       the newest match.
+//   node learning-log.mjs check --file ENTRY_FILE
+//       Runs add's checks on an entry without writing anything, for when the
+//       entry is only shown to the user.
 //   node learning-log.mjs add [--log PATH] --file ENTRY_FILE --topic TOPIC [--date YYYY-MM-DD]
 //       Checks the entry (Task, 1-3 numbered lessons under Learned, a Level
 //       of 1-3), adds the "## date · topic" heading and inserts it above the
@@ -25,6 +28,7 @@ import { dirname, basename, join } from "node:path";
 const USAGE = `usage:
   learning-log.mjs list [--log PATH]
   learning-log.mjs find [--log PATH] [--limit N] TERM...
+  learning-log.mjs check --file ENTRY_FILE
   learning-log.mjs add  [--log PATH] --file ENTRY_FILE --topic TOPIC [--date YYYY-MM-DD]`;
 
 const NEW_LOG_HEADER =
@@ -41,6 +45,7 @@ const NO_HISTORY =
   "pick the level from the user's phrasing (a plan they bring means level 2 or higher), otherwise level 1. If they keep a log somewhere else, pass --log.";
 
 class UsageError extends Error {}
+class EntryError extends Error {}
 const fail = (msg) => {
   throw new UsageError(msg);
 };
@@ -55,7 +60,10 @@ function parseArgs(argv) {
       if (i + 1 >= rest.length) fail(`${arg} needs a value`);
       return rest[++i];
     };
-    if (arg === "--log") opts.log = value();
+    if (arg === "--log") {
+      opts.log = value();
+      opts.logSet = true;
+    }
     else if (arg === "--limit") opts.limit = Number(value());
     else if (arg === "--topic") opts.topic = value();
     else if (arg === "--date") opts.date = value();
@@ -197,22 +205,25 @@ function find(opts) {
   if (parsed.headless) console.log(HEADLESS_NOTE(opts.log));
 }
 
+// Lessons run from "Learned:" to the next field. Count the numbered lines;
+// wrapped lines and indented sub-points belong to the lesson above them.
+// Null when there's no "Learned:" line at all.
+function countLessons(lines) {
+  const start = lines.findIndex((l) => /^Learned\s*[:：]/i.test(l));
+  if (start === -1) return null;
+  const rest = lines.slice(start + 1);
+  const end = rest.findIndex((l) => FIELD.test(l));
+  return rest.slice(0, end === -1 ? undefined : end).filter((l) => /^\d+[.)]\s+\S/.test(l)).length;
+}
+
 function checkEntry(entry) {
   const problems = [];
   const lines = entry.split("\n");
   if (!lines.some((l) => /^Task\s*[:：]\s*\S/i.test(l))) problems.push('missing a "Task:" line');
 
-  // Lessons run from "Learned:" to the next field. Count the numbered lines;
-  // wrapped lines and indented sub-points belong to the lesson above them.
-  const start = lines.findIndex((l) => /^Learned\s*[:：]/i.test(l));
-  if (start === -1) problems.push('missing a "Learned:" line followed by numbered lessons');
-  else {
-    const rest = lines.slice(start + 1);
-    const end = rest.findIndex((l) => FIELD.test(l));
-    const block = rest.slice(0, end === -1 ? undefined : end);
-    const lessons = block.filter((l) => /^\d+[.)]\s+\S/.test(l)).length;
-    if (lessons < 1 || lessons > 3) problems.push(`has ${lessons} numbered lessons under "Learned:"; keep 1-3 transferable ones`);
-  }
+  const lessons = countLessons(lines);
+  if (lessons === null) problems.push('missing a "Learned:" line followed by numbered lessons');
+  else if (lessons < 1 || lessons > 3) problems.push(`has ${lessons} numbered lessons under "Learned:"; keep 1-3 transferable ones`);
 
   const level = entry.match(/^Level\s*[:：](.*)$/im);
   if (!level) problems.push('missing a "Level:" line');
@@ -233,10 +244,32 @@ function isRealDate(s) {
   return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(s);
 }
 
-function readEntry(opts) {
+function readEntry(opts, command) {
   if (opts.file) return readFileSync(opts.file, "utf8");
-  if (process.stdin.isTTY) fail("add needs the entry: pass --file ENTRY_FILE (or pipe it on stdin)");
+  if (process.stdin.isTTY) fail(`${command} needs the entry: pass --file ENTRY_FILE (or pipe it on stdin)`);
   return readFileSync(0, "utf8");
+}
+
+// The entry body, checked; throws an EntryError listing every problem.
+function readCheckedEntry(opts, command, verb) {
+  let body = readEntry(opts, command).replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").trim();
+  if (!body) fail("the entry is empty");
+  if (body.startsWith("## ")) {
+    throw new EntryError(`leave the "## date · topic" heading out of the entry${command === "add" ? "; --topic and --date make it" : ""}`);
+  }
+  const problems = checkEntry(`## 2000-01-01 · check\n${body}`);
+  if (problems.length) throw new EntryError(`entry ${verb}:\n- ${problems.join("\n- ")}`);
+  return body;
+}
+
+function check(opts) {
+  for (const [flag, set] of [["--log", opts.logSet], ["--topic", opts.topic], ["--date", opts.date]]) {
+    if (set) fail(`check doesn't take ${flag}; it only reads the entry`);
+  }
+  const body = readCheckedEntry(opts, "check", "has problems");
+  const { level, next } = describe(`## x\n${body}`, 0);
+  const lessons = countLessons(body.split("\n"));
+  console.log(`Entry OK: ${lessons} lesson${lessons === 1 ? "" : "s"}, ${levelSummary({ level, next })}.`);
 }
 
 function add(opts) {
@@ -245,12 +278,8 @@ function add(opts) {
   const date = opts.date ?? today();
   if (!isRealDate(date)) fail(`--date must be a real YYYY-MM-DD date, got "${date}"`);
 
-  let body = readEntry(opts).replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").trim();
-  if (!body) fail("the entry is empty");
-  if (body.startsWith("## ")) fail('leave the "## date · topic" heading out of the entry; --topic and --date make it');
+  const body = readCheckedEntry(opts, "add", "not added");
   const entry = `## ${date} · ${opts.topic.trim()}\n${body}`;
-  const problems = checkEntry(entry);
-  if (problems.length) fail(`entry not added:\n- ${problems.join("\n- ")}`);
 
   if (!existsSync(dirname(opts.log))) {
     fail(`the folder for ${opts.log} doesn't exist${opts.log.startsWith("~") ? ' (the shell only expands "~" when it is unquoted)' : ""}`);
@@ -258,10 +287,10 @@ function add(opts) {
   const log = existsSync(opts.log) ? readLog(opts.log) : { raw: NEW_LOG_HEADER, bom: "", eol: "\n", text: NEW_LOG_HEADER };
   const { entries, headless } = parseLog(log.text);
   if (headless) {
-    fail(`${opts.log} has entries without their own "## YYYY-MM-DD · topic" heading, so where "newest first" goes is unclear. Give those entries headings first, or add this one by hand.`);
+    throw new EntryError(`${opts.log} has entries without their own "## YYYY-MM-DD · topic" heading, so where "newest first" goes is unclear. Give those entries headings first, or add this one by hand.`);
   }
   if (entries.some((e) => e.text.slice(e.text.indexOf("\n") + 1).trim() === body)) {
-    fail(`${opts.log} already has this entry; nothing added.`);
+    throw new EntryError(`${opts.log} already has this entry; nothing added.`);
   }
 
   // Insert above the first entry (or append), leaving every other byte alone.
@@ -291,7 +320,7 @@ function add(opts) {
   console.log(`Added "## ${date} · ${opts.topic.trim()}" as the newest entry in ${opts.log}.`);
 }
 
-const commands = { list, find, add };
+const commands = { list, find, check, add };
 try {
   const { command, opts } = parseArgs(process.argv.slice(2));
   if (opts.help) console.log(USAGE);
@@ -299,6 +328,7 @@ try {
   else commands[command](opts);
 } catch (err) {
   if (err instanceof UsageError) console.error(`learning-log: ${err.message}\n${USAGE}`);
+  else if (err instanceof EntryError) console.error(`learning-log: ${err.message}`);
   else console.error(`learning-log: ${err.code === "ENOENT" ? `no such file or directory: ${err.path}` : err.message}`);
   process.exit(1);
 }

@@ -8,7 +8,7 @@ This repo develops a single [Agent Skill](https://agentskills.io/specification):
 - `SKILL.md`'s body must stay within 920 words (`validate.mjs` checks): it loads on every trigger. Put depth in `references/` and point to it from `SKILL.md`, saying when to read it. Steps 4–7 live in `references/after-the-checkpoint.md` because they only matter once the first checkpoint is answered.
 - Frontmatter allows only `name`, `description`, `license`, `allowed-tools`, `metadata` and `compatibility`. The description must be ≤1024 characters with no angle brackets.
 - Keep the description to 60 words or fewer (`validate.mjs` checks): what the skill does and when to use it. It sits in the agent's context on every turn, so lead with a few trigger words, not a list of example phrases or a summary of the procedure. Those belong in the body.
-- Deterministic steps belong in `scripts/` inside the skill, not in prose. `scripts/learning-log.mjs` reads and writes the learning log. Skill scripts are optional helpers: Node, zero dependencies, and `SKILL.md` must still work when they can't run. Tests live in the repo's `scripts/learning-log.test.mjs`.
+- Deterministic steps and checks belong in commands, not prose. `scripts/learning-log.mjs` reads, checks and writes the learning log; `scripts/installed.mjs` finds the installed version of a library (the API rule "installed version, not memory"); `references/after-the-checkpoint.md` shows the red-then-green test check as git commands. Skill scripts are optional helpers: Node, zero dependencies, and the skill must still work when they can't run. Their tests live in the repo's `scripts/*.test.mjs`.
 
 ## Cross-agent compatibility
 
@@ -35,7 +35,7 @@ Use the `skill-creator` skill for the eval loop. The conventions for this repo:
 
 ```bash
 node scripts/validate.mjs
-node --test scripts/learning-log.test.mjs
+node --test scripts/*.test.mjs
 npx skills add . --list
 ```
 
