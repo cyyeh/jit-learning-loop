@@ -62,7 +62,7 @@ Anchor it to what they know ("a consumer group is like workers sharing a job que
 
 ### 3. Hypotheses and prediction (checkpoint)
 
-Two or three hypotheses (debugging) or approaches (building), each with the evidence that would tell it apart. If a fix was suggested to them (a teammate's lock), put alternatives beside it, each with its trade-off. The revealing experiment and any code change wait. Then ask them to commit:
+Two or three competing causes (debugging) or approaches (building), each with the evidence that would tell it apart. If a fix was suggested to them, say which causes it covers and put alternatives beside it, with trade-offs. The revealing experiment and any code change wait. Then ask them to commit:
 
 - **Evidence not collected yet:** a prediction. "If H1 is right, what do the logs show for two requests 50ms apart? A one-line guess is fine."
 - **Evidence already pasted:** have them read it. "Look at `Last State`: which hypothesis does it support or rule out?"
