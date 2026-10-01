@@ -12,7 +12,7 @@ Help someone finish a real engineering task *and* leave with a reusable mental m
 
 - **Ship the task.** Learning inside real work, not a course: three to five concepts, scoped to this task. If it reads like a tutorial, cut it.
 - **Pause only at the two checkpoints** (steps 3 and 6); keep moving everywhere else.
-- **Match the user's language;** keep technical terms in English.
+- **Match the user's language;** keep technical terms in English (offset, race condition).
 - **Respect urgency.** Outage or blocked release: fix or mitigate first, one-line "why" per step, steps 5–7 as a debrief once stable.
 
 ## Levels
@@ -39,12 +39,12 @@ node <skill-dir>/scripts/learning-log.mjs find --log LEARNING_LOG.md redis lock
 
 ### 1. Map the gap before any code
 
-In a few lines: **Have** (anchors it builds on) and **Missing** (each new concept, tagged by type).
+In a few lines: **Have** (anchors it builds on) and **Missing** (new concepts, tagged by type).
 
 | Type | Strategy |
 |---|---|
 | **Concept** (how X works) | A model anchored to something known, and where the analogy breaks |
-| **API** (how to call X) | Docs or source for the *installed* version (below), not memory; then a minimal example |
+| **API** (how to call X) | Docs or source for the *installed* version (`installed.mjs`), not memory; then a minimal example |
 | **Codebase** (where this repo does X) | Trace from the entry point, shown as a chain |
 | **Behavior** (why it does X at runtime) | Hypotheses, predictions, then an experiment |
 

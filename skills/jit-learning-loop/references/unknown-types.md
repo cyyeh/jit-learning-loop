@@ -38,14 +38,21 @@ Most tasks contain more than one type. Tag each gap separately. Codebase and API
 **Sounds like:** "How do I configure tool calling in the latest SDK?" "What's the flag for X?" "How do I do Y with library Z?"
 
 **Strategy:**
-1. Check which version is actually installed before answering. `installed.mjs` looks in the project's `node_modules`, Python environment (its `.venv` first), `go.mod` and `Cargo.lock`, and prints the version and where its source is on disk; if nothing is installed, the version a lockfile or `requirements.txt` pins:
+1. Check which version is actually installed before answering. `installed.mjs` prints the version and where its source is on disk. It looks in `node_modules` (else `package-lock.json`), the project's Python environment (an active or project virtualenv, else the system Python, labelled), Go modules (honouring `replace`) and every `Cargo.lock` entry, and reports `requirements*.txt` pins, flagging one that disagrees with what's installed:
 
    ```bash
    node <skill-dir>/scripts/installed.mjs kafka-python --in <project-dir>
    ```
 
-   No Node, or another ecosystem: read the lockfile, or ask which version they run.
-2. Read the docs or source for *that* version (the printed source path is the code that will actually run). SDKs move fast, and answering from memory produces confident code for an API that no longer exists.
+   Without Node, or for other ecosystems and lockfiles (yarn, pnpm, poetry, uv), use the ecosystem's own tool from the project folder, or ask which version they run:
+
+   ```bash
+   npm ls kafkajs
+   .venv/bin/python -m pip show kafka-python
+   go list -m -json github.com/segmentio/kafka-go
+   cargo tree -i rdkafka
+   ```
+2. Read the docs or source for *that* version. The printed source path is usually the code that runs; the `via` line says which environment it came from. SDKs move fast, and answering from memory produces confident code for an API that no longer exists.
 3. Give a minimal runnable example, then adapt it to the task.
 
 **Leave to the user:** a link to the exact doc page or source file you used, so they learn where the answer lives, not just what it is.

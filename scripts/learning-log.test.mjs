@@ -255,6 +255,7 @@ test("add refuses to write the same entry twice", () => {
   const again = add(log, "Redis locking", "2026-03-14", ENTRY);
   assert.equal(again.status, 1);
   assert.match(again.stderr, /already has this entry/);
+  assert.doesNotMatch(again.stderr, /usage:/, "a duplicate isn't a usage error");
 });
 
 test("add still reads the entry from stdin when --file is omitted", () => {
@@ -273,9 +274,13 @@ test("--help works in any position", () => {
 });
 
 test("check validates an entry without writing anything", () => {
-  const ok = run(["check", "--file", entryFile(ENTRY)]);
+  const cwd = tempDir();
+  const ok = spawnSync(process.execPath, [script, "check", "--file", entryFile(ENTRY)], { cwd, encoding: "utf8" });
   assert.equal(ok.status, 0, ok.stderr);
   assert.equal(ok.stdout.trim(), "Entry OK: 2 lessons, level 1, try 2 next.");
+  assert.deepEqual(readdirSync(cwd), [], "check wrote nothing");
+  assert.match(run(["check", "--log", "x.md", "--file", entryFile(ENTRY)]).stderr, /check doesn't take --log/);
+  assert.doesNotMatch(run(["check", "--file", entryFile("## 2026-01-01 · t\n" + ENTRY)]).stderr, /--topic/);
 
   const bad = run(["check", "--file", entryFile("Task: x\nLearned:\n1. a\n2. b\n3. c\n4. d\nNext time:\n1. read\nLevel: 7\n")]);
   assert.equal(bad.status, 1);

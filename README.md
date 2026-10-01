@@ -109,8 +109,8 @@ docs/
 demo/                        recorded sessions + GitHub Pages site (one folder per scenario, eval snapshot)
 scripts/
   validate.mjs               Agent Skills spec check (no dependencies; runs in CI)
-  learning-log.test.mjs      tests for the skill's helpers (run in CI)
-  installed.test.mjs
+  learning-log.test.mjs      tests for learning-log.mjs (run in CI)
+  installed.test.mjs         tests for installed.mjs (run in CI)
   install.sh                 dev symlink installer (any agent's skills directory)
 ```
 
@@ -118,7 +118,7 @@ scripts/
 
 ```bash
 node scripts/validate.mjs                    # spec check: name, description and body length, YAML safety, reference paths
-node --test scripts/*.test.mjs              # tests for the skill's helper scripts
+node --test scripts/*.test.mjs               # tests for the skill's helper scripts
 npx skills add . --list                      # confirm the skills CLI discovers it
 ```
 

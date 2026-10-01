@@ -60,7 +60,10 @@ function parseArgs(argv) {
       if (i + 1 >= rest.length) fail(`${arg} needs a value`);
       return rest[++i];
     };
-    if (arg === "--log") opts.log = value();
+    if (arg === "--log") {
+      opts.log = value();
+      opts.logSet = true;
+    }
     else if (arg === "--limit") opts.limit = Number(value());
     else if (arg === "--topic") opts.topic = value();
     else if (arg === "--date") opts.date = value();
@@ -241,24 +244,29 @@ function isRealDate(s) {
   return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(s);
 }
 
-function readEntry(opts) {
+function readEntry(opts, command) {
   if (opts.file) return readFileSync(opts.file, "utf8");
-  if (process.stdin.isTTY) fail("add needs the entry: pass --file ENTRY_FILE (or pipe it on stdin)");
+  if (process.stdin.isTTY) fail(`${command} needs the entry: pass --file ENTRY_FILE (or pipe it on stdin)`);
   return readFileSync(0, "utf8");
 }
 
-// The entry body, checked; throws a UsageError listing every problem.
-function readCheckedEntry(opts, verb) {
-  let body = readEntry(opts).replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").trim();
+// The entry body, checked; throws an EntryError listing every problem.
+function readCheckedEntry(opts, command, verb) {
+  let body = readEntry(opts, command).replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").trim();
   if (!body) fail("the entry is empty");
-  if (body.startsWith("## ")) fail('leave the "## date · topic" heading out of the entry; --topic and --date make it');
+  if (body.startsWith("## ")) {
+    throw new EntryError(`leave the "## date · topic" heading out of the entry${command === "add" ? "; --topic and --date make it" : ""}`);
+  }
   const problems = checkEntry(`## 2000-01-01 · check\n${body}`);
   if (problems.length) throw new EntryError(`entry ${verb}:\n- ${problems.join("\n- ")}`);
   return body;
 }
 
 function check(opts) {
-  const body = readCheckedEntry(opts, "has problems");
+  for (const [flag, set] of [["--log", opts.logSet], ["--topic", opts.topic], ["--date", opts.date]]) {
+    if (set) fail(`check doesn't take ${flag}; it only reads the entry`);
+  }
+  const body = readCheckedEntry(opts, "check", "has problems");
   const { level, next } = describe(`## x\n${body}`, 0);
   const lessons = countLessons(body.split("\n"));
   console.log(`Entry OK: ${lessons} lesson${lessons === 1 ? "" : "s"}, ${levelSummary({ level, next })}.`);
@@ -270,7 +278,7 @@ function add(opts) {
   const date = opts.date ?? today();
   if (!isRealDate(date)) fail(`--date must be a real YYYY-MM-DD date, got "${date}"`);
 
-  const body = readCheckedEntry(opts, "not added");
+  const body = readCheckedEntry(opts, "add", "not added");
   const entry = `## ${date} · ${opts.topic.trim()}\n${body}`;
 
   if (!existsSync(dirname(opts.log))) {
@@ -279,10 +287,10 @@ function add(opts) {
   const log = existsSync(opts.log) ? readLog(opts.log) : { raw: NEW_LOG_HEADER, bom: "", eol: "\n", text: NEW_LOG_HEADER };
   const { entries, headless } = parseLog(log.text);
   if (headless) {
-    fail(`${opts.log} has entries without their own "## YYYY-MM-DD · topic" heading, so where "newest first" goes is unclear. Give those entries headings first, or add this one by hand.`);
+    throw new EntryError(`${opts.log} has entries without their own "## YYYY-MM-DD · topic" heading, so where "newest first" goes is unclear. Give those entries headings first, or add this one by hand.`);
   }
   if (entries.some((e) => e.text.slice(e.text.indexOf("\n") + 1).trim() === body)) {
-    fail(`${opts.log} already has this entry; nothing added.`);
+    throw new EntryError(`${opts.log} already has this entry; nothing added.`);
   }
 
   // Insert above the first entry (or append), leaving every other byte alone.
