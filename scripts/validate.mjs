@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const skillsDir = join(root, "skills");
+const MAX_DESCRIPTION_WORDS = 60;
 const ALLOWED = new Set(["name", "description", "license", "compatibility", "metadata", "allowed-tools"]);
 
 let failures = 0;
@@ -50,12 +51,16 @@ for (const dir of readdirSync(skillsDir, { withFileTypes: true })) {
   if (!description) fail(dir.name, "description is empty");
   if ([...description].length > 1024) fail(dir.name, `description is ${[...description].length} chars (max 1024)`);
   if (/[<>]/.test(description)) fail(dir.name, "description must not contain angle brackets");
+  // The description sits in the agent's context on every turn. Say what the
+  // skill does and when to use it; leave trigger-phrase lists to the body.
+  const words = description.split(/\s+/).filter(Boolean).length;
+  if (words > MAX_DESCRIPTION_WORDS) fail(dir.name, `description is ${words} words (max ${MAX_DESCRIPTION_WORDS}); cut trigger lists and procedure summaries`);
   if (/:\s/.test(description)) fail(dir.name, 'description contains ": ", which breaks unquoted YAML');
   if (/\s#/.test(description)) fail(dir.name, 'description contains " #", which YAML reads as a comment');
 
   if (compatibility && [...compatibility].length > 500) fail(dir.name, "compatibility exceeds 500 chars");
 
-  if (!failures) console.log(`✓ ${dir.name} (description ${[...description].length}/1024 chars)`);
+  if (!failures) console.log(`✓ ${dir.name} (description ${[...description].length}/1024 chars, ${words}/${MAX_DESCRIPTION_WORDS} words)`);
 }
 
 process.exit(failures ? 1 : 0);

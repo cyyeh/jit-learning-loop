@@ -65,3 +65,26 @@ Ask the user once. Reasonable defaults:
 - **Personal, across projects:** a single file the user names (for example `~/notes/learning-log.md`). This is better for fading, because topics recur across repos.
 
 Append new entries at the top so the most recent is read first. Don't reorganize or rewrite old entries unless asked.
+
+## The helper script
+
+`scripts/learning-log.mjs` in this skill's folder handles the mechanical parts (Node 18+, no dependencies). `--log` defaults to `LEARNING_LOG.md` in the current directory. Without Node, do the same by hand.
+
+```bash
+# Step 0: what does the log already say about this topic?
+node <skill folder>/scripts/learning-log.mjs list --log LEARNING_LOG.md            # every topic and its level
+node <skill folder>/scripts/learning-log.mjs find --log LEARNING_LOG.md redis lock # matching entries + latest level
+
+# Step 7: add the entry (no "##" heading; the script adds today's date and the topic)
+node <skill folder>/scripts/learning-log.mjs add --log LEARNING_LOG.md --topic "Redis locking" <<'ENTRY'
+Task: Stop double-charge when users double-click Pay
+Unknown types: concept (race), API (SET NX PX)
+Learned:
+1. Check-then-act across concurrent requests is a race, whatever the language or framework.
+2. Release must check ownership, or you free someone else's lock.
+Next time: read about fencing tokens before the next lock.
+Level: 1, try 2
+ENTRY
+```
+
+`find` matches any of the words, case-insensitively, so pass a few synonyms (`redis lock race`). It can't judge relevance, though: if nothing matches, `list` the topics and decide yourself whether one is related. `add` creates the log if it's missing, keeps the existing header, and refuses an entry with no `Task:`, more than three lessons, or no level of 1–3. Keep the field names (`Task:`, `Learned:`, `Level:`) in English even when the lessons are in another language, so the script and the next agent can read them.

@@ -7,6 +7,8 @@ This repo develops a single [Agent Skill](https://agentskills.io/specification):
 - `docs/methodology.zh-TW.md` is the original essay (`docs/methodology.en.md` is its English translation; if you change one, update the other). The skill is its operational distillation. When changing the skill's behavior, check it still agrees with the essay's core question: *which cognitive work does the user keep, so next time they need less help?*
 - `SKILL.md` must stay under ~500 lines. Put depth in `references/` and point to it from `SKILL.md`, saying when to read it.
 - Frontmatter allows only `name`, `description`, `license`, `allowed-tools`, `metadata` and `compatibility`. The description must be ≤1024 characters with no angle brackets.
+- Keep the description to 60 words or fewer (`validate.mjs` checks): what the skill does and when to use it. It sits in the agent's context on every turn, so don't pad it with lists of example trigger phrases or a summary of the procedure. That belongs in the body.
+- Deterministic steps belong in `scripts/` inside the skill, not in prose. `scripts/learning-log.mjs` reads and writes the learning log. Skill scripts are optional helpers: Node, zero dependencies, and `SKILL.md` must still work when they can't run. Tests live in the repo's `scripts/learning-log.test.mjs`.
 
 ## Cross-agent compatibility
 
@@ -32,6 +34,7 @@ Use the `skill-creator` skill for the eval loop. The conventions for this repo:
 
 ```bash
 node scripts/validate.mjs
+node --test scripts/learning-log.test.mjs
 npx skills add . --list
 ```
 

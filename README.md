@@ -94,6 +94,7 @@ skills/jit-learning-loop/    the skill (what `npx skills add` installs)
     unknown-types.md         signals, strategies and traps for each unknown type; fundamentals list
     fading.md                assistance levels, how to choose one, worked example
     learning-log.md          template, local vs. transferable, examples
+  scripts/learning-log.mjs   optional helper: look up past entries, add a checked entry (Node, no deps)
   agents/openai.yaml         optional Codex / ChatGPT display metadata
 .claude-plugin/              optional Claude Code plugin + marketplace manifests
 evals/
@@ -105,17 +106,19 @@ docs/
 demo/                        recorded sessions + GitHub Pages site (one folder per scenario, eval snapshot)
 scripts/
   validate.mjs               Agent Skills spec check (no dependencies; runs in CI)
+  learning-log.test.mjs      tests for the skill's learning-log helper (runs in CI)
   install.sh                 dev symlink installer (any agent's skills directory)
 ```
 
 ## Developing the skill
 
 ```bash
-node scripts/validate.mjs          # spec check: name, description length, YAML safety
-npx skills add . --list            # confirm the skills CLI discovers it
+node scripts/validate.mjs                    # spec check: name, description length, YAML safety
+node --test scripts/learning-log.test.mjs    # tests for the learning-log helper
+npx skills add . --list                      # confirm the skills CLI discovers it
 ```
 
-CI runs both on every push. See [AGENTS.md](AGENTS.md) for how to iterate with `skill-creator`: run the evals with and without the skill, review the outputs in the viewer, and revise.
+CI runs all three on every push. See [AGENTS.md](AGENTS.md) for how to iterate with `skill-creator`: run the evals with and without the skill, review the outputs in the viewer, and revise.
 
 ## License
 
