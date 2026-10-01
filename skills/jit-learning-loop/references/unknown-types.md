@@ -38,8 +38,14 @@ Most tasks contain more than one type. Tag each gap separately. Codebase and API
 **Sounds like:** "How do I configure tool calling in the latest SDK?" "What's the flag for X?" "How do I do Y with library Z?"
 
 **Strategy:**
-1. Check which version is actually installed (lockfile, `pip show`, `package.json`) before answering.
-2. Read the docs or source for *that* version. SDKs move fast, and answering from memory produces confident code for an API that no longer exists.
+1. Check which version is actually installed before answering. `installed.mjs` looks in the project's `node_modules`, Python environment (its `.venv` first), `go.mod` and `Cargo.lock`, and prints the version and where its source is on disk; if nothing is installed, the version a lockfile or `requirements.txt` pins:
+
+   ```bash
+   node <skill-dir>/scripts/installed.mjs kafka-python --in <project-dir>
+   ```
+
+   No Node, or another ecosystem: read the lockfile, or ask which version they run.
+2. Read the docs or source for *that* version (the printed source path is the code that will actually run). SDKs move fast, and answering from memory produces confident code for an API that no longer exists.
 3. Give a minimal runnable example, then adapt it to the task.
 
 **Leave to the user:** a link to the exact doc page or source file you used, so they learn where the answer lives, not just what it is.

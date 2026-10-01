@@ -271,3 +271,14 @@ test("--help works in any position", () => {
     assert.match(r.stdout, /^usage:/);
   }
 });
+
+test("check validates an entry without writing anything", () => {
+  const ok = run(["check", "--file", entryFile(ENTRY)]);
+  assert.equal(ok.status, 0, ok.stderr);
+  assert.equal(ok.stdout.trim(), "Entry OK: 2 lessons, level 1, try 2 next.");
+
+  const bad = run(["check", "--file", entryFile("Task: x\nLearned:\n1. a\n2. b\n3. c\n4. d\nNext time:\n1. read\nLevel: 7\n")]);
+  assert.equal(bad.status, 1);
+  assert.match(bad.stderr, /entry has problems:\n- has 4 numbered lessons.*\n- "Level:" needs a level/);
+  assert.doesNotMatch(bad.stderr, /usage:/, "entry problems aren't usage errors");
+});

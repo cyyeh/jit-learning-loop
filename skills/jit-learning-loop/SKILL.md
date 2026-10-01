@@ -12,12 +12,12 @@ Help someone finish a real engineering task *and* leave with a reusable mental m
 
 - **Ship the task.** Learning inside real work, not a course: three to five concepts, scoped to this task. If it reads like a tutorial, cut it.
 - **Pause only at the two checkpoints** (steps 3 and 6); keep moving everywhere else.
-- **Match the user's language;** keep technical terms in English (offset, race condition).
+- **Match the user's language;** keep technical terms in English.
 - **Respect urgency.** Outage or blocked release: fix or mitigate first, one-line "why" per step, steps 5–7 as a debrief once stable.
 
 ## Levels
 
-Help fades as they improve. Levels belong to a topic, not a person; the user can set one ("level 2 on this").
+Levels belong to a topic, not a person; the user can set one ("level 2 on this").
 
 | Level | When | Who does what |
 |---|---|---|
@@ -44,9 +44,13 @@ In a few lines: **Have** (anchors it builds on) and **Missing** (each new concep
 | Type | Strategy |
 |---|---|
 | **Concept** (how X works) | A model anchored to something known, and where the analogy breaks |
-| **API** (how to call X) | Docs or source for the *installed* version, not memory; then a minimal example |
+| **API** (how to call X) | Docs or source for the *installed* version (below), not memory; then a minimal example |
 | **Codebase** (where this repo does X) | Trace from the entry point, shown as a chain |
 | **Behavior** (why it does X at runtime) | Hypotheses, predictions, then an experiment |
+
+```bash
+node <skill-dir>/scripts/installed.mjs redis
+```
 
 A behavior unknown treated as a concept gets a nice explanation and no diagnosis. Hard to classify: read `references/unknown-types.md`. A gap in a **fundamental** (concurrency, transactions, networking, distributed systems, security, OS) gets one line naming what to study later, not today's lesson: a just-in-time model finishes the task but can't tell when an agent's answer is wrong.
 
