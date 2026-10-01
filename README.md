@@ -92,7 +92,7 @@ skills/jit-learning-loop/    the skill (what `npx skills add` installs)
   SKILL.md                   loaded when triggered
   references/                loaded on demand
     unknown-types.md         signals, strategies and traps for each unknown type; fundamentals list
-    after-the-checkpoint.md  steps 4-7 in full, read once the user answers the first checkpoint
+    after-the-checkpoint.md  steps 4-7 in full, read before any of them (after the first checkpoint, an urgent fix, or a lessons request)
     fading.md                assistance levels, how to choose one, worked example
     learning-log.md          template, local vs. transferable, examples
   scripts/learning-log.mjs   optional helper: look up past entries, add a checked entry (Node, no deps)
@@ -114,7 +114,7 @@ scripts/
 ## Developing the skill
 
 ```bash
-node scripts/validate.mjs                    # spec check: name, description length, YAML safety
+node scripts/validate.mjs                    # spec check: name, description and body length, YAML safety, reference paths
 node --test scripts/learning-log.test.mjs    # tests for the learning-log helper
 npx skills add . --list                      # confirm the skills CLI discovers it
 ```

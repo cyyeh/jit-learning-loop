@@ -10,6 +10,9 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const skillsDir = join(root, "skills");
 const MAX_DESCRIPTION_WORDS = 60;
+// SKILL.md's body loads on every trigger. Published skills have a median body
+// of about 921 words; depth that's only needed later belongs in references/.
+const MAX_BODY_WORDS = 920;
 const ALLOWED = new Set(["name", "description", "license", "compatibility", "metadata", "allowed-tools"]);
 
 let failures = 0;
@@ -60,7 +63,14 @@ for (const dir of readdirSync(skillsDir, { withFileTypes: true })) {
 
   if (compatibility && [...compatibility].length > 500) fail(dir.name, "compatibility exceeds 500 chars");
 
-  if (!failures) console.log(`✓ ${dir.name} (description ${[...description].length}/1024 chars, ${words}/${MAX_DESCRIPTION_WORDS} words)`);
+  const body = text.slice(match[0].length);
+  const bodyWords = body.split(/\s+/).filter(Boolean).length;
+  if (bodyWords > MAX_BODY_WORDS) fail(dir.name, `SKILL.md body is ${bodyWords} words (max ${MAX_BODY_WORDS}); move depth into references/`);
+  for (const ref of new Set((body.match(/(?:references|scripts)\/[\w.-]+/g) ?? []).map((r) => r.replace(/\.+$/, "")))) {
+    if (!existsSync(join(skillsDir, dir.name, ref))) fail(dir.name, `SKILL.md points to ${ref}, which doesn't exist`);
+  }
+
+  if (!failures) console.log(`✓ ${dir.name} (description ${[...description].length}/1024 chars, ${words}/${MAX_DESCRIPTION_WORDS} words; body ${bodyWords}/${MAX_BODY_WORDS} words)`);
 }
 
 process.exit(failures ? 1 : 0);

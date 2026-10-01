@@ -1,14 +1,20 @@
 # After the checkpoint: steps 4–7
 
-Read this when the user has answered the step-3 checkpoint (or said "skip"), or when an incident is stable and it's time for the debrief. Later turns run: evidence vs. prediction → the change → the diff explained → three questions → lessons. Keep each section tight: faster than a tutorial, and more left behind than a bare fix.
+Read this before any of steps 4–7, whenever they come:
+
+- **The user answered the step-3 checkpoint, or said "skip".** Start at step 4.
+- **Something is on fire.** Read it before the fix: step 4's rules hold under pressure too. Give a one-line "why" per step, then run steps 5–7 as a debrief once things are stable.
+- **They ask what to take away from finished work.** Go to step 7, using step 5's lens (key idea, invariants, failure modes) to find the lessons.
+
+Later turns run: evidence vs. prediction → the change → the diff explained → three questions → lessons. Use short headings so each phase is easy to scan, and keep each one tight: faster than a tutorial, and more left behind than a bare fix.
 
 ## 4. Investigate and implement
 
-Now work at full speed; this is where the agent's productivity belongs. Run the experiment or gather the evidence, then compare it with their prediction: where it matched, where it didn't, and why the difference is interesting. A wrong prediction is the most informative moment of the task, so name exactly which part of their model it corrects. Say which hypotheses the evidence ruled out and which one survived.
+**At level 2 or 3, their checkpoint answer is a plan.** Critique it first (what's right, what's missing, what would break, with a hint before naming what's missing) and let them revise. Then build their version together, or at level 3 let them build it while you review with questions ("what happens if this runs twice?") before corrections. Don't swap in your own design.
+
+Otherwise, work at full speed; this is where the agent's productivity belongs. Run the experiment or gather the evidence, then compare it with their prediction: where it matched, where it didn't, and why the difference is interesting. A wrong prediction is the most informative moment of the task, so name exactly which part of their model it corrects. Say which hypotheses the evidence ruled out and which one survived.
 
 Then make the smallest change that fixes the problem, with tests as usual. If there's a better fix than the one the user or a teammate suggested (say, an idempotency key instead of a distributed lock), raise it with the trade-off. Don't quietly swap it in.
-
-At level 2 or 3, the user proposed the approach; build it with them rather than replacing it. At level 3 they implement and you review: ask questions ("what happens if this runs twice?") before correcting.
 
 ## 5. Explain the diff
 
@@ -47,12 +53,12 @@ Next time: look at fencing tokens if a lock guards anything that must be exactly
 Level: 1, try level 2 on the next concurrency bug
 ```
 
-Keep only lessons that would make a **different** problem faster next time. "The lock lives in `payments/checkout.py`" is local; "releasing a lock needs an ownership check" transfers. Write the lessons in the user's language, but keep the field names (`Task:`, `Learned:`, `Level:`...) in English so the next agent and the script can read them. If they handled the checkpoints well, suggest moving up a level in the `Level:` line.
+Keep only lessons that would make a **different** problem faster next time. "The lock lives in `payments/checkout.py`" is local; "releasing a lock needs an ownership check" transfers. Write the lessons in the user's language, but keep the field names (`Task:`, `Learned:`, `Level:`...) in English so the next agent and the script can read them. If they handled the checkpoints well, suggest moving up a level in the `Level:` line (`fading.md` has the signals).
 
-If the user keeps a log, add the entry at the top; ask once where it lives (`LEARNING_LOG.md` in the repo root is a sensible default). Otherwise show the entry and offer to start one. To add it, write the entry without its `##` line to a temporary file outside the repo (a file, not `echo`, so the shell can't run backticks in the lessons), then:
+Always show the entry. Write it to a log only if the user keeps one or agrees to start one; ask once where it lives (`LEARNING_LOG.md` in the repo root is a sensible default). To add it, write the entry without its `##` line to a temporary file outside the repo (a file, not `echo`, so the shell can't run backticks in the lessons), run the script below, then delete the file. Without Node, add it at the top of the log by hand.
 
 ```bash
 node <skill-dir>/scripts/learning-log.mjs add --log LEARNING_LOG.md --topic "Redis lock / check-then-act race" --file <entry-file>
 ```
 
-It adds the dated heading, puts the entry above the newest one without touching the rest of the file, and rejects an entry missing a task, 1–3 numbered lessons or a level. Delete the temporary file afterwards. Without Node, edit the log directly. `learning-log.md` (next to this file) has the template, more examples and the local-vs-transferable test in detail.
+`learning-log.md` (next to this file) has the template, more examples, the local-vs-transferable test, and what the script checks.

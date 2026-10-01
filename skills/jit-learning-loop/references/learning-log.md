@@ -38,7 +38,7 @@ Local knowledge still matters for the current repo. If it's worth keeping, it be
 Task: Stop double-charge when users double-click Pay
 Unknown types: concept (race), API (SET NX PX)
 Learned:
-1. SET NX can implement a simple lock.
+1. A lock is an atomic "set if absent" plus an owner and an expiry; each of the three parts prevents a different failure.
 2. Release must check ownership, or you free someone else's lock.
 3. A TTL prevents deadlock but introduces a lease-expiry race.
 Next time: read about fencing tokens / Redlock for stronger guarantees.
@@ -68,16 +68,18 @@ Append new entries at the top so the most recent is read first. Don't reorganize
 
 ## The helper script
 
-`scripts/learning-log.mjs` in this skill's folder handles the mechanical parts (Node 18+, no dependencies). `--log` defaults to `LEARNING_LOG.md` in the current directory. Without Node, do the same by hand.
+`<skill-dir>/scripts/learning-log.mjs` (`<skill-dir>` is the folder holding SKILL.md) handles the mechanical parts (Node 18+, no dependencies). `--log` defaults to `LEARNING_LOG.md` in the current directory. Without Node, do the same by hand.
 
 Step 0, what does the log already say about this topic?
 
+`list` prints every topic and its level; `find` prints the matching entries, best first, and a suggested starting level:
+
 ```bash
-node <skill-dir>/scripts/learning-log.mjs list --log LEARNING_LOG.md              # every topic and its level
-node <skill-dir>/scripts/learning-log.mjs find --log LEARNING_LOG.md redis lock   # matching entries, best first, suggested level
+node <skill-dir>/scripts/learning-log.mjs list --log LEARNING_LOG.md
+node <skill-dir>/scripts/learning-log.mjs find --log LEARNING_LOG.md redis lock
 ```
 
-`find` matches any of the words, so pass a few (`redis lock race`). English words match at word starts ("lock" finds "locking", not "blocking"); other scripts match anywhere. It can't judge relevance or translate: if nothing matches, `list` the topics and decide yourself whether one is related.
+`find` matches any of the words, so pass a few (`redis lock race`). English words match at word starts ("lock" finds "locking", not "blocking"); other scripts match anywhere. It only suggests a level when the best match hits every word and is also the newest; otherwise it asks you to check the topic. It can't judge relevance or translate: if nothing matches, `list` the topics and decide yourself whether one is related. Either way, a level the user asks for, or a plan they bring (level 2+), wins over the log.
 
 Step 7, add the entry. Write it to a temporary file outside the repo, with no `##` line (the script adds `## <date> · <topic>`), and delete the file afterwards:
 

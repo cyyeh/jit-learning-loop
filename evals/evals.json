@@ -67,6 +67,51 @@
         "Does not deliver a full rewritten consumer in the first turn",
         "Does not give away the checkpoint answer: it isn't stated, or directly computable, from the model, diagram or hypotheses earlier in the same reply"
       ]
+    },
+    {
+      "id": 5,
+      "name": "turn-2-after-prediction",
+      "prompt": "(A later turn, not a first message.) The conversation so far: demo/double-charge/transcript/en/01-user.md is the user, 02-agent.md is your previous reply, and 03-user.md is the message you are answering now. Don't read anything else under demo/; it holds the recorded ending of this conversation. The user's code is evals/files/checkout/: copy it into your output directory and treat the copy as their repo.",
+      "expected_output": "Steps 4-6: compares the user's prediction (1 charge at 50ms because asyncio is single-threaded) with evidence, ideally a reproduction, and says exactly which part of their model it corrects; uses their prod evidence (180ms apart, first request 200, primary DB) to rule hypotheses in or out; makes the smallest fix with tests in the copy; raises a stronger fix (idempotency key or conditional UPDATE) with its trade-off without swapping it in; explains the diff in four parts; ends with three transfer questions, answers withheld, and no learning log yet.",
+      "files": [
+        "demo/double-charge/transcript/en/01-user.md",
+        "demo/double-charge/transcript/en/02-agent.md",
+        "demo/double-charge/transcript/en/03-user.md",
+        "evals/files/checkout/app.py",
+        "evals/files/checkout/db.py",
+        "evals/files/checkout/payments.py"
+      ],
+      "expectations": [
+        "Compares the user's prediction with evidence and names the specific misconception (single-threaded does not mean one request at a time; every await is a yield point)",
+        "Uses the user's prod evidence (180ms apart, first request returned 200, primary DB) to rule hypotheses in or out",
+        "Makes a small fix with tests in the copied project, and runs them or says plainly why it couldn't",
+        "Raises a stronger alternative (idempotency key, conditional UPDATE) with a trade-off, without quietly swapping it in",
+        "Explains the diff: what changed, why there, the key idea, and invariants/failure modes",
+        "Ends with three questions that test transfer rather than recall, with the answers left out",
+        "Does not write the learning log or move on to lessons yet"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "turn-3-after-check-answers",
+      "prompt": "(A later turn, not a first message.) The conversation so far: demo/double-charge/transcript/en/01-user.md to 05-user.md, alternating user and you; 05-user.md is the message you are answering now. Don't read 06-agent.md, any LEARNING_LOG file, or anything else under demo/ beyond those five files and the project. The user's code after your last turn is demo/double-charge/project/: copy it, minus its LEARNING_LOG*.md files, into your output directory and treat the copy as their repo root.",
+      "expected_output": "Step 6 feedback then step 7: responds to the reasoning in each of the three answers (1 right; 2 half right, since reading the order before taking the lock brings the race back; 3 right about lease expiry but wrong that A's release deletes B's lock, because the token check stops it), ideally checking by experiment; leaves Idempotency-Key for the user to implement as they asked; writes a well-formed entry at the top of LEARNING_LOG.md in the repo copy with 1-3 transferable lessons and a suggestion to move up a level.",
+      "files": [
+        "demo/double-charge/transcript/en/01-user.md",
+        "demo/double-charge/transcript/en/02-agent.md",
+        "demo/double-charge/transcript/en/03-user.md",
+        "demo/double-charge/transcript/en/04-agent.md",
+        "demo/double-charge/transcript/en/05-user.md"
+      ],
+      "expectations": [
+        "Responds to the reasoning in each of the three answers and says which part is right, not just right or wrong",
+        "Corrects answer 2: reading the order before acquiring the lock brings the race back",
+        "Corrects answer 3: with the token check, A's release does not delete B's lock",
+        "Leaves the Idempotency-Key change for the user to implement, offering to review it",
+        "Writes an entry at the top of LEARNING_LOG.md in the repo copy, with a dated '## date · topic' heading, Task, 1-3 numbered lessons and a Level line",
+        "The lessons are transferable (would help on a different problem), not local file or line references",
+        "The Level line suggests moving up a level next time"
+      ]
     }
   ]
 }

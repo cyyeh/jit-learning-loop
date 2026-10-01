@@ -47,6 +47,36 @@ test("list reads the level from every demo log, in English and Traditional Chine
   }
 });
 
+test("a missing log points at the user's phrasing and --log", () => {
+  const r = run(["list", "--log", tempLog()]);
+  assert.equal(r.status, 0);
+  assert.match(r.stdout, /No learning log at .*a plan they bring means level 2 or higher.*pass --log/);
+});
+
+test("the next level only counts when introduced as one", () => {
+  const log = tempLog();
+  writeFileSync(
+    log,
+    [
+      "# Log",
+      "## 2026-01-05 · a\nLevel: 1, revisit in 2 weeks",
+      "## 2026-01-04 · b\nLevel: 2 (was 1 last time)",
+      "## 2026-01-03 · c\nLevel: 1 → 2",
+      "## 2026-01-02 · d\nLevel: 1, try 2",
+    ].join("\n\n") + "\n",
+  );
+  assert.deepEqual(run(["list", "--log", log]).stdout.trim().split("\n"), [
+    "2026-01-05 · a · level 1",
+    "2026-01-04 · b · level 2",
+    "2026-01-03 · c · level 1, try 2 next",
+    "2026-01-02 · d · level 1, try 2 next",
+  ]);
+  const unrecorded = tempLog();
+  writeFileSync(unrecorded, "# Log\n\n## 2026-01-01 · Terraform state\nTask: move a bucket\n");
+  const r = run(["find", "--log", unrecorded, "terraform"]);
+  assert.doesNotMatch(r.stdout, /Suggested starting level/, "no level suggestion from an entry with no recorded level");
+});
+
 test("level parsing ignores ordinals and sentence-ending periods", () => {
   const log = tempLog();
   writeFileSync(
@@ -95,11 +125,15 @@ Level: 3
 
   const zh = run(["find", "--log", join(demo("double-charge"), "LEARNING_LOG.md"), "租約"]);
   assert.match(zh.stdout, /Best match: 2026-09-29/);
+  assert.match(zh.stdout, /Suggested starting level: 2 /);
 
   const none = run(["find", "--log", log, "kubernetes"]);
   assert.equal(none.status, 0);
   assert.match(none.stdout, /No entries .* mention: kubernetes\. Run "list"/);
-  assert.match(none.stdout, /start at level 1/);
+  assert.match(none.stdout, /a plan they bring means level 2 or higher\), otherwise level 1/);
+
+  const partial = run(["find", "--log", log, "redis", "kafka"]);
+  assert.match(partial.stdout, /No suggested level: check whether these entries are really the same topic/);
 });
 
 test("a missing log is reported, not an error", () => {

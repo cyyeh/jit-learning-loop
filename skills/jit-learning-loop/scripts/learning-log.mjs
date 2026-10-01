@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Reads and writes the learning log (steps 0 and 7 of SKILL.md), so the agent
+// Reads and writes the learning log (step 0 of SKILL.md, step 7 of
+// references/after-the-checkpoint.md), so the agent
 // can look up one topic in a long log and add entries in the same shape and
 // place every time. Zero dependencies; Node 18+.
 //
@@ -8,7 +9,9 @@
 //   node learning-log.mjs find [--log PATH] [--limit N] TERM...
 //       Entries mentioning any TERM, best match first, and the level the
 //       best match ended at. ASCII terms match at word starts ("lock" finds
-//       "locking", not "blocking"); other terms match anywhere.
+//       "locking", not "blocking"); other terms match anywhere. Suggests a
+//       starting level only when the best match has every TERM and is also
+//       the newest match.
 //   node learning-log.mjs add [--log PATH] --file ENTRY_FILE --topic TOPIC [--date YYYY-MM-DD]
 //       Checks the entry (Task, 1-3 numbered lessons under Learned, a Level
 //       of 1-3), adds the "## date · topic" heading and inserts it above the
@@ -31,6 +34,11 @@ const FIELD = /^(Task|Unknown types|Learned|Next time|Level)\s*[:：]/i;
 const ENTRY_HEADING = /^## .*\d{4}-\d{2}-\d{2}/;
 // A level digit, not part of a bigger number, a decimal or an ordinal ("2nd").
 const LEVEL_DIGIT = /(?<![\d.])([123])(?!\d|\.\d|st\b|nd\b|rd\b|th\b)/g;
+// The next level only counts when it's introduced as one: "try 2", "level 2",
+// "→ 2". So "revisit in 2 weeks" or "(was 1 last time)" isn't read as a level.
+const NEXT_LEVEL = /(?:level|lvl|try|→|->)\s*([123])(?!\d|\.\d|st\b|nd\b|rd\b|th\b)/gi;
+const NO_HISTORY =
+  "pick the level from the user's phrasing (a plan they bring means level 2 or higher), otherwise level 1. If they keep a log somewhere else, pass --log.";
 
 class UsageError extends Error {}
 const fail = (msg) => {
@@ -119,7 +127,10 @@ function describe(text, index) {
   const levelLine = text.match(/^Level\s*[:：](.*)$/im)?.[1] ?? "";
   // "Level: 1, try level 2 on ..." → level 1, next 2. Works in any language
   // as long as the current level comes first.
-  const [level, next] = [...levelLine.matchAll(LEVEL_DIGIT)].map((m) => m[1]);
+  const first = LEVEL_DIGIT.exec(levelLine);
+  LEVEL_DIGIT.lastIndex = 0;
+  const level = first?.[1];
+  const next = first ? [...levelLine.slice(first.index + 1).matchAll(NEXT_LEVEL)][0]?.[1] : undefined;
   return { text, index, date, topic, level, next };
 }
 
@@ -134,7 +145,7 @@ const HEADLESS_NOTE = (log) =>
 
 function loadForReading(log) {
   if (!existsSync(log)) {
-    console.log(`No learning log at ${log}. Treat the topic as new (level 1) unless the user says otherwise.`);
+    console.log(`No learning log at ${log}. With no history, ${NO_HISTORY}`);
     return null;
   }
   return parseLog(readLog(log).text);
@@ -168,16 +179,20 @@ function find(opts) {
     .sort((a, b) => b.score - a.score || b.date.localeCompare(a.date) || a.index - b.index);
 
   if (!matches.length) {
-    console.log(`No entries in ${opts.log} mention: ${opts.terms.join(", ")}. Run "list" and judge whether any topic is related; if none is, start at level 1.`);
+    console.log(`No entries in ${opts.log} mention: ${opts.terms.join(", ")}. Run "list" and judge whether any topic is related. If none is, ${NO_HISTORY}`);
   } else {
     const shown = matches.slice(0, opts.limit);
     console.log(shown.map((e) => e.text).join("\n\n"));
     if (matches.length > shown.length) console.log(`\n(${matches.length - shown.length} more; raise --limit to see them)`);
-    console.log(`\nBest match: ${label(matches[0])}, ${levelSummary(matches[0])}.`);
     const best = matches[0];
-    if (best.level) console.log(`Suggested starting level: ${best.next ?? best.level} (a level the user asks for, or a plan they bring, still wins).`);
     const newest = [...matches].sort((a, b) => b.date.localeCompare(a.date) || a.index - b.index)[0];
-    if (newest !== matches[0]) console.log(`Most recent match: ${label(newest)}, ${levelSummary(newest)}.`);
+    console.log(`\nBest match: ${label(best)}, ${levelSummary(best)}.`);
+    if (newest !== best) console.log(`Most recent match: ${label(newest)}, ${levelSummary(newest)}.`);
+    if (best.level && best.score === tests.length && newest === best) {
+      console.log(`Suggested starting level: ${best.next ?? best.level} (a level the user asks for, or a plan they bring, still wins).`);
+    } else {
+      console.log("No suggested level: check whether these entries are really the same topic before using their level.");
+    }
   }
   if (parsed.headless) console.log(HEADLESS_NOTE(opts.log));
 }
