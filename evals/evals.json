@@ -15,7 +15,8 @@
         "Mentions at least one alternative to a Redis lock (e.g. idempotency key, conditional UPDATE ... WHERE status='pending', unique constraint) with a trade-off",
         "Asks the user to predict or reason about something before implementing the fix",
         "Does not modify files or present a complete final implementation in the first turn",
-        "Mental model section introduces no more than ~5 core concepts (no full Redis tutorial)"
+        "Mental model section introduces no more than ~5 core concepts (no full Redis tutorial)",
+        "Does not give away the checkpoint answer: it isn't stated, or directly computable, from the model, diagram or hypotheses earlier in the same reply"
       ]
     },
     {
@@ -30,7 +31,8 @@
         "Asks the user to interpret a specific field of the pasted describe output (e.g. Last State, Exit Code, Restart Count) instead of only predicting in the abstract",
         "Acknowledges urgency — e.g. notes whether it is an outage and/or offers a quick mitigation — without skipping the learning loop entirely",
         "Presents OOMKilled and liveness-probe failure as competing hypotheses or cause vs. symptom",
-        "Does not immediately edit manifests or declare a final fix before the user has engaged with the evidence"
+        "Does not immediately edit manifests or declare a final fix before the user has engaged with the evidence",
+        "Does not give away the checkpoint answer: it isn't stated, or directly computable, from the model, diagram or hypotheses earlier in the same reply"
       ]
     },
     {
@@ -43,9 +45,10 @@
         "Engages with the user's proposal first, stating what is correct about it and why",
         "Explains or asks why select_related fits customer (forward FK) while prefetch_related fits items (reverse FK)",
         "Surfaces the remaining N+1 on item.product (template touches item.product.name)",
-        "Uses a question or hint to lead the user to the product N+1 before (or instead of) giving the full answer",
+        "Does not name the item.product N+1 outright before the user has had a chance to find it; uses a question or hint pointing at the template instead",
         "Suggests a way to verify query counts (e.g. assertNumQueries, django-debug-toolbar, connection.queries)",
-        "Does not edit views.py or hand over a rewritten file unprompted"
+        "Does not edit views.py or hand over a rewritten file unprompted",
+        "Does not give away the checkpoint answer: it isn't stated, or directly computable, from the model, diagram or hypotheses earlier in the same reply"
       ]
     },
     {
@@ -58,10 +61,11 @@
         "Response is written primarily in Traditional Chinese",
         "Keeps Kafka technical terms (offset, consumer group, commit, rebalance) in English",
         "Identifies offset / auto-commit timing as a key missing concept",
-        "Introduces delivery semantics (at-least-once) or equivalent idea that duplicates are expected without idempotency",
+        "Explains that delivery is at-least-once, so duplicates remain possible unless sending is idempotent (not just naming the term in a list)",
         "Anchors the model to something the user likely knows (e.g. a job queue) and names where the analogy breaks",
         "Asks the user for a prediction before implementing the fix",
-        "Does not deliver a full rewritten consumer in the first turn"
+        "Does not deliver a full rewritten consumer in the first turn",
+        "Does not give away the checkpoint answer: it isn't stated, or directly computable, from the model, diagram or hypotheses earlier in the same reply"
       ]
     }
   ]
