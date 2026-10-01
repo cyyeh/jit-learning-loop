@@ -31,7 +31,7 @@ At levels 2–3, don't take over, even when their plan is mostly right: say what
 
 ### 0. Calibrate (mostly silently)
 
-Pick the level from their phrasing ("never used Redis" vs. "I think the fix is X, can you check?") and any plan they bring; when unsure, level 1. Note anchors they know (HTTP, SQL, queues) to hang the model on. A learning log's entries on this topic say where they left off. Read it, or for a long log run `find` (matches and a suggested level). `<skill-dir>` holds this file; the log is wherever the user keeps it.
+Pick the level from their phrasing ("never used Redis" vs. "I think the fix is X, can you check?") and any plan they bring; when unsure, level 1. Note anchors they know (HTTP, SQL, queues). A learning log says where they left off on this topic: read it, or for a long log run `find` (matching entries plus a suggested level). `<skill-dir>` holds this file; `--log` is wherever they keep it.
 
 ```bash
 node <skill-dir>/scripts/learning-log.mjs find --log LEARNING_LOG.md redis lock
@@ -48,22 +48,21 @@ In a few lines: **Have** (anchors it builds on) and **Missing** (each new concep
 | **Codebase** (where this repo does X) | Trace from the entry point, shown as a chain |
 | **Behavior** (why it does X at runtime) | Hypotheses, predictions, then an experiment |
 
-Treat a behavior unknown as a concept unknown and you get a nice explanation and no diagnosis. Hard to classify: read `references/unknown-types.md`. A gap in a **fundamental** (concurrency, transactions, networking, distributed systems, security, OS) gets one line naming what to study later, not today's lesson: a just-in-time model finishes the task but can't tell when an agent's answer is wrong.
+A behavior unknown treated as a concept gets a nice explanation and no diagnosis. Hard to classify: read `references/unknown-types.md`. A gap in a **fundamental** (concurrency, transactions, networking, distributed systems, security, OS) gets one line naming what to study later, not today's lesson: a just-in-time model finishes the task but can't tell when an agent's answer is wrong.
 
 ### 2. Give the minimum viable mental model
 
 The gap map's concepts and how they relate (relationships over definitions), usually as a small text diagram:
 
 ```text
-Deployment ──manages──▶ ReplicaSet ──keeps N of──▶ Pod ──contains──▶ Container
 Container exits (crash, OOMKilled) → kubelet restarts it in the same Pod → Restart Count +1
 ```
 
-Anchor it to what they know ("a consumer group is like workers sharing a job queue, except...") and say where the analogy breaks; the bug often lives there. Name what you left out.
+Anchor it to what they know ("a consumer group is like workers sharing a job queue, except...") and to their own code, and say where the analogy breaks; the bug often lives there. Name what you left out.
 
 ### 3. Hypotheses and prediction (checkpoint)
 
-Two or three hypotheses (debugging) or approaches (building), each with the evidence that would tell it apart. Reading code is fine; the revealing experiment and any code change wait. Then ask them to commit:
+Two or three hypotheses (debugging) or approaches (building), each with the evidence that would tell it apart. If a fix was suggested to them (a teammate's lock), put alternatives beside it, each with its trade-off. The revealing experiment and any code change wait. Then ask them to commit:
 
 - **Evidence not collected yet:** a prediction. "If H1 is right, what do the logs show for two requests 50ms apart? A one-line guess is fine."
 - **Evidence already pasted:** have them read it. "Look at `Last State`: which hypothesis does it support or rule out?"
@@ -74,7 +73,7 @@ End your turn there. A prediction only teaches if made before the answer is visi
 A level-1 first reply, tight:
 
 ```markdown
-## What this task needs      Have / Missing, each tagged (concept · fundamental: concurrency)
+## What this task needs      Have: HTTP, SQL · Missing: check-then-act race (concept · fundamental: concurrency), Redis SET NX PX (API)
 ## Minimum model             small diagram + 2–4 sentences, anchored
 ## Hypotheses                H1, H2, each with what would show it
 **Your turn:** one prediction or evidence-reading question. Or say "skip".
@@ -84,7 +83,7 @@ A level-1 first reply, tight:
 
 Read `references/after-the-checkpoint.md` before any of these: after the checkpoint answer or skip, before an urgent fix, or when asked for lessons from finished work. Reminders only:
 
-4. **Investigate and implement:** evidence vs. their prediction, then the smallest fix with tests. Raise a better fix with its trade-off; never swap it in unasked.
+4. **Investigate and implement:** evidence vs. their prediction, then the smallest fix with tests; never swap in a different fix unasked.
 5. **Explain the diff:** what changed, why there, the key idea, invariants and failure modes.
 6. **Check understanding (checkpoint):** three transfer questions, answers left out.
 7. **Keep 1–3 transferable lessons:** show the entry; add it only to a log they keep or agree to start.
